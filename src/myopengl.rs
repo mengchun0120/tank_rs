@@ -1,5 +1,6 @@
 use crate::mytypes::MyError;
 use gl::types::*;
+use image::EncodableLayout;
 use std::os::raw::c_void;
 use std::{ffi::CString, fmt::Display, fs, mem, ptr, str};
 
@@ -146,6 +147,12 @@ impl ShaderProgram {
             gl::UseProgram(self.id);
         }
     }
+
+    pub fn set_uniform_int(&self, loc: i32, value: i32) {
+        unsafe {
+            gl::Uniform1i(loc, value);
+        }
+    }
 }
 
 impl Drop for ShaderProgram {
@@ -175,7 +182,9 @@ impl VertexAttribPointer {
 }
 
 pub struct VertexArray {
-    id: u32,
+    vbo: u32,
+    ebo: Option<u32>,
+    vao: u32,
 }
 
 impl VertexArray {
@@ -199,16 +208,18 @@ impl VertexArray {
                 gl::STATIC_DRAW,
             );
 
+            let mut ebo: Option<u32> = None;
             if let Some(i) = indices {
-                let mut ebo = 0;
-                gl::GenBuffers(1, &mut ebo);
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+                let mut b = 0;
+                gl::GenBuffers(1, &mut b);
+                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, b);
                 gl::BufferData(
                     gl::ELEMENT_ARRAY_BUFFER,
                     (i.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
                     &i[0] as *const i32 as *const c_void,
                     gl::STATIC_DRAW,
                 );
+                ebo = Some(b);
             }
 
             Self::set_pointers(pointers);
@@ -216,13 +227,13 @@ impl VertexArray {
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             Self::unbind();
 
-            Self { id: vao }
+            Self { vao, vbo, ebo }
         }
     }
 
     pub fn bind(&self) {
         unsafe {
-            gl::BindVertexArray(self.id);
+            gl::BindVertexArray(self.vao);
         }
     }
 
@@ -249,16 +260,98 @@ impl VertexArray {
     }
 }
 
-pub enum DrawMode {
-    TRIANGLES = gl::TRIANGLES as isize,
+impl Drop for VertexArray {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteBuffers(1, &self.vbo);
+            if let Some(i) = self.ebo {
+                gl::DeleteBuffers(1, &i);
+            }
+            gl::DeleteVertexArrays(1, &self.vao);
+        }
+    }
 }
 
 pub struct Render {}
 
 impl Render {
-    pub fn draw_elemens(mode: DrawMode, count: u32) {
+    pub fn draw_elemens(mode: GLenum, first: u32, count: u32) {
         unsafe {
-            gl::DrawElements(mode as u32, count as GLsizei, gl::UNSIGNED_INT, ptr::null());
+            gl::DrawElements(
+                mode,
+                count as GLsizei,
+                gl::UNSIGNED_INT,
+                (first as usize) as *const c_void,
+            );
+        }
+    }
+
+    pub fn draw_arrays(mode: GLenum, first: u32, count: u32) {
+        unsafe {
+            gl::DrawArrays(mode, first as GLint, count as GLsizei);
+        }
+    }
+}
+
+pub struct Texture {
+    width: u32,
+    height: u32,
+    id: u32,
+}
+
+impl Texture {
+    pub fn new(file_path: &str) -> Result<Self, MyError> {
+        let img = image::open(file_path)
+            .map_err(|e| format!("Failed to open image {}: {}", file_path, e))?;
+        let img = img.flipv();
+        let img = img.into_rgba8();
+
+        unsafe {
+            let mut id = 0;
+            gl::GenTextures(1, &mut id);
+
+            gl::BindTexture(gl::TEXTURE_2D, id);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_S, gl::REPEAT as GLint);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_WRAP_T, gl::REPEAT as GLint);
+
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MIN_FILTER, gl::LINEAR as GLint);
+            gl::TexParameteri(gl::TEXTURE_2D, gl::TEXTURE_MAG_FILTER, gl::LINEAR as GLint);
+
+            let data = img.as_bytes();
+            gl::TexImage2D(
+                gl::TEXTURE_2D,
+                0,
+                gl::RGBA as i32,
+                img.width() as i32,
+                img.height() as i32,
+                0,
+                gl::RGBA,
+                gl::UNSIGNED_BYTE,
+                &data[0] as *const u8 as *const c_void,
+            );
+
+            gl::GenerateMipmap(gl::TEXTURE_2D);
+
+            Ok(Self {
+                width: img.width(),
+                height: img.height(),
+                id,
+            })
+        }
+    }
+
+    pub fn bind(&self, unit: GLenum) {
+        unsafe {
+            gl::ActiveTexture(unit);
+            gl::BindTexture(gl::TEXTURE_2D, self.id);
+        }
+    }
+}
+
+impl Drop for Texture {
+    fn drop(&mut self) {
+        unsafe {
+            gl::DeleteTextures(1, &self.id);
         }
     }
 }

@@ -2,7 +2,7 @@ mod myopengl;
 mod mytypes;
 
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
-use myopengl::{DrawMode, Render, ShaderProgram, VertexArray, VertexAttribPointer};
+use myopengl::{Render, ShaderProgram, Texture, VertexArray, VertexAttribPointer};
 use mytypes::MyError;
 
 pub struct App {
@@ -10,7 +10,9 @@ pub struct App {
     window: PWindow,
     events: GlfwReceiver<(f64, WindowEvent)>,
     shader_program: ShaderProgram,
-    triangles: VertexArray,
+    va: VertexArray,
+    texture: Texture,
+    texture_loc: i32,
 }
 
 impl App {
@@ -18,14 +20,18 @@ impl App {
         let mut glfw = Self::init_glfw()?;
         let (window, events) = Self::init_window(&mut glfw, width, height, title)?;
         let shader_program = ShaderProgram::new("res/vertex_shader.glsl", "res/frag_shader.glsl")?;
-        let triangles = Self::init_triangless(&shader_program)?;
+        let va = Self::init_vertex_array(&shader_program)?;
+        let texture = Texture::new("res/container.jpg")?;
+        let texture_loc = shader_program.get_uniform_loc("texture1")?;
 
         Ok(Self {
             glfw,
             window,
             events,
             shader_program,
-            triangles,
+            va,
+            texture,
+            texture_loc,
         })
     }
 
@@ -65,17 +71,16 @@ impl App {
         Ok((window, events))
     }
 
-    fn init_triangless(shader_program: &ShaderProgram) -> Result<VertexArray, MyError> {
-        let vertices: [f32; 12] = [
-            0.5, 0.5, 0.0, 0.5, -0.5, 0.0, -0.5, -0.5, 0.0, -0.5, 0.5, 0.0,
+    fn init_vertex_array(shader_program: &ShaderProgram) -> Result<VertexArray, MyError> {
+        let vertices = [
+            0.5, 0.5, 0.0, 1.0, 1.0, 0.5, -0.5, 0.0, 1.0, 0.0, -0.5, -0.5, 0.0, 0.0, 0.0, -0.5,
+            0.5, 0.0, 0.0, 1.0,
         ];
         let indices = [0, 1, 3, 1, 2, 3];
-        let pointers = [VertexAttribPointer::new(
-            shader_program.get_attrib_loc("pos")? as u32,
-            3,
-            3,
-            0,
-        )];
+        let pointers = [
+            VertexAttribPointer::new(shader_program.get_attrib_loc("pos")? as u32, 3, 5, 0),
+            VertexAttribPointer::new(shader_program.get_attrib_loc("tex_coord")? as u32, 2, 5, 3),
+        ];
 
         Ok(VertexArray::new(&vertices, Some(&indices), &pointers))
     }
@@ -97,8 +102,10 @@ impl App {
     fn render(&mut self) {
         self.clear_window();
         self.shader_program.use_program();
-        self.triangles.bind();
-        Render::draw_elemens(DrawMode::TRIANGLES, 6);
+        self.va.bind();
+        self.shader_program.set_uniform_int(self.texture_loc, 0);
+        self.texture.bind(gl::TEXTURE0);
+        Render::draw_elemens(gl::TRIANGLES, 0, 6);
     }
 
     fn post_update(&mut self) {
