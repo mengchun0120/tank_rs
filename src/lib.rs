@@ -1,3 +1,4 @@
+mod mygame;
 mod myopengl;
 mod myrender;
 mod mytests;
@@ -106,7 +107,7 @@ impl App {
             VertexAttribPointer::new(simple_renderer.tex_pos_loc() as u32, 2, 4, 2),
         ];
 
-        Ok(VertexArray::new(&vertices, Some(&indices), &pointers))
+        VertexArray::new(&vertices, &indices, &pointers)
     }
 
     fn init_opengl(&self) {

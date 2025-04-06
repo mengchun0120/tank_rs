@@ -221,18 +221,32 @@ impl VertexAttribPointer {
 
 pub struct VertexArray {
     vbo: u32,
-    ebo: Option<u32>,
+    ebo: u32,
     vao: u32,
+    vertice_count: usize,
 }
 
 impl VertexArray {
     pub fn new(
         vertices: &[f32],
-        indices: Option<&[i32]>,
+        indices: &[i32],
         pointers: &[VertexAttribPointer],
-    ) -> Self {
+    ) -> Result<Self, MyError> {
+        let (mut vbo, mut vao, mut ebo) = (0, 0, 0);
+
+        if vertices.len() == 0 {
+            return Err("vertices is empty".into());
+        }
+
+        if indices.len() == 0 {
+            return Err("indices is empty".into());
+        }
+
+        if pointers.len() == 0 {
+            return Err("pointers is empty".into());
+        }
+
         unsafe {
-            let (mut vbo, mut vao) = (0, 0);
             gl::GenVertexArrays(1, &mut vao);
             gl::GenBuffers(1, &mut vbo);
 
@@ -242,43 +256,50 @@ impl VertexArray {
             gl::BufferData(
                 gl::ARRAY_BUFFER,
                 (vertices.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-                &vertices[0] as *const f32 as *const c_void,
+                vertices.as_ptr() as *const c_void,
                 gl::STATIC_DRAW,
             );
 
-            let mut ebo: Option<u32> = None;
-            if let Some(i) = indices {
-                let mut b = 0;
-                gl::GenBuffers(1, &mut b);
-                gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, b);
-                gl::BufferData(
-                    gl::ELEMENT_ARRAY_BUFFER,
-                    (i.len() * mem::size_of::<GLfloat>()) as GLsizeiptr,
-                    &i[0] as *const i32 as *const c_void,
-                    gl::STATIC_DRAW,
-                );
-                ebo = Some(b);
-            }
+            gl::GenBuffers(1, &mut ebo);
+            gl::BindBuffer(gl::ELEMENT_ARRAY_BUFFER, ebo);
+            gl::BufferData(
+                gl::ELEMENT_ARRAY_BUFFER,
+                (indices.len() * mem::size_of::<GLint>()) as GLsizeiptr,
+                indices.as_ptr() as *const c_void,
+                gl::STATIC_DRAW,
+            );
 
             Self::set_pointers(pointers);
 
             gl::BindBuffer(gl::ARRAY_BUFFER, 0);
             Self::unbind();
-
-            Self { vao, vbo, ebo }
         }
+
+        Ok(Self {
+            vao,
+            vbo,
+            ebo,
+            vertice_count: indices.len(),
+        })
     }
 
+    #[inline]
     pub fn bind(&self) {
         unsafe {
             gl::BindVertexArray(self.vao);
         }
     }
 
+    #[inline]
     pub fn unbind() {
         unsafe {
             gl::BindVertexArray(0);
         }
+    }
+
+    #[inline]
+    pub fn vertice_count(&self) -> usize {
+        self.vertice_count
     }
 
     fn set_pointers(pointers: &[VertexAttribPointer]) {
@@ -302,9 +323,7 @@ impl Drop for VertexArray {
     fn drop(&mut self) {
         unsafe {
             gl::DeleteBuffers(1, &self.vbo);
-            if let Some(i) = self.ebo {
-                gl::DeleteBuffers(1, &i);
-            }
+            gl::DeleteBuffers(1, &self.ebo);
             gl::DeleteVertexArrays(1, &self.vao);
         }
     }
