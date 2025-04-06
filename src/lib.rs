@@ -1,41 +1,61 @@
 mod myopengl;
+mod myrender;
+mod mytests;
 mod mytypes;
 
+use cgmath::Vector2;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
-use myopengl::{Render, ShaderProgram, Texture, VertexArray, VertexAttribPointer};
-use mytypes::MyError;
+use myopengl::*;
+use myrender::*;
+use mytypes::*;
 
 pub struct App {
     glfw: Glfw,
     window: PWindow,
     events: GlfwReceiver<(f64, WindowEvent)>,
-    shader_program: ShaderProgram,
+    simple_render: SimpleRender,
     va: VertexArray,
     texture: Texture,
-    texture_loc: i32,
+    viewport_origin: Vector2<f32>,
+    viewport_size: Vector2<f32>,
+    obj_ref: Vector2<f32>,
 }
 
 impl App {
     pub fn new(width: u32, height: u32, title: &str) -> Result<Self, MyError> {
         let mut glfw = Self::init_glfw()?;
         let (window, events) = Self::init_window(&mut glfw, width, height, title)?;
-        let shader_program = ShaderProgram::new("res/vertex_shader.glsl", "res/frag_shader.glsl")?;
-        let va = Self::init_vertex_array(&shader_program)?;
+        let simple_render = SimpleRender::new(
+            "res/glsl/simple_vertex_shader.glsl",
+            "res/glsl/simple_frag_shader.glsl",
+        )?;
+        let va = Self::init_vertex_array(&simple_render)?;
         let texture = Texture::new("res/container.jpg")?;
-        let texture_loc = shader_program.get_uniform_loc("texture1")?;
 
         Ok(Self {
             glfw,
             window,
             events,
-            shader_program,
+            simple_render,
             va,
             texture,
-            texture_loc,
+            viewport_origin: Vector2 {
+                x: width as f32 / 2.0,
+                y: height as f32 / 2.0,
+            },
+            viewport_size: Vector2 {
+                x: width as f32,
+                y: height as f32,
+            },
+            obj_ref: Vector2 {
+                x: width as f32 / 2.0,
+                y: height as f32 / 2.0,
+            },
         })
     }
 
     pub fn run(&mut self) {
+        self.init_opengl();
         while !self.window.should_close() {
             self.process_events();
             self.render();
@@ -57,6 +77,7 @@ impl App {
         glfw.window_hint(glfw::WindowHint::OpenGlProfile(
             glfw::OpenGlProfileHint::Core,
         ));
+        glfw.window_hint(glfw::WindowHint::Resizable(false));
 
         let (mut window, events) = glfw
             .create_window(width, height, title, glfw::WindowMode::Windowed)
@@ -71,18 +92,30 @@ impl App {
         Ok((window, events))
     }
 
-    fn init_vertex_array(shader_program: &ShaderProgram) -> Result<VertexArray, MyError> {
-        let vertices = [
-            0.5, 0.5, 0.0, 1.0, 1.0, 0.5, -0.5, 0.0, 1.0, 0.0, -0.5, -0.5, 0.0, 0.0, 0.0, -0.5,
-            0.5, 0.0, 0.0, 1.0,
+    fn init_vertex_array(simple_renderer: &SimpleRender) -> Result<VertexArray, MyError> {
+        let positions = &[-50.0, -50.0, 50.0, -50.0, 50.0, 50.0, -50.0, 50.0];
+        let tex_coords = &[0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0];
+        let blocks = vec![
+            VertexDataBlock::new(2, positions)?,
+            VertexDataBlock::new(2, tex_coords)?,
         ];
+        let vertices = interleave_vertex_data(&blocks)?;
         let indices = [0, 1, 3, 1, 2, 3];
         let pointers = [
-            VertexAttribPointer::new(shader_program.get_attrib_loc("pos")? as u32, 3, 5, 0),
-            VertexAttribPointer::new(shader_program.get_attrib_loc("tex_coord")? as u32, 2, 5, 3),
+            VertexAttribPointer::new(simple_renderer.position_loc() as u32, 2, 4, 0),
+            VertexAttribPointer::new(simple_renderer.tex_pos_loc() as u32, 2, 4, 2),
         ];
 
         Ok(VertexArray::new(&vertices, Some(&indices), &pointers))
+    }
+
+    fn init_opengl(&self) {
+        unsafe {
+            gl::ClearColor(0.2, 0.3, 0.3, 1.0);
+            gl::Enable(gl::BLEND);
+            gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
+            gl::Enable(gl::DEPTH_TEST);
+        }
     }
 
     fn process_events(&mut self) {
@@ -101,11 +134,20 @@ impl App {
 
     fn render(&mut self) {
         self.clear_window();
-        self.shader_program.use_program();
+        self.simple_render.apply();
+        self.simple_render
+            .set_viewport_origin(&self.viewport_origin);
+        self.simple_render.set_viewport_size(&self.viewport_size);
+        self.simple_render.set_use_direction(false);
+        self.simple_render.set_use_obj_ref(true);
+        self.simple_render.set_obj_ref(&self.obj_ref);
+        self.simple_render.set_z(0.0);
+        self.simple_render.set_alpha(1.0);
+        self.simple_render.set_tex_unit(0);
+        self.simple_render.set_use_color(false);
         self.va.bind();
-        self.shader_program.set_uniform_int(self.texture_loc, 0);
         self.texture.bind(gl::TEXTURE0);
-        Render::draw_elemens(gl::TRIANGLES, 0, 6);
+        draw_elemens(gl::TRIANGLES, 0, 6);
     }
 
     fn post_update(&mut self) {
@@ -115,8 +157,7 @@ impl App {
 
     fn clear_window(&mut self) {
         unsafe {
-            gl::ClearColor(0.2, 0.3, 0.3, 1.0);
-            gl::Clear(gl::COLOR_BUFFER_BIT);
+            gl::Clear(gl::COLOR_BUFFER_BIT | gl::DEPTH_BUFFER_BIT);
         }
     }
 }

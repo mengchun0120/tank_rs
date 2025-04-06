@@ -1,4 +1,5 @@
 use crate::mytypes::MyError;
+use cgmath::{Vector2, Vector3, prelude::*};
 use gl::types::*;
 use image::EncodableLayout;
 use std::os::raw::c_void;
@@ -142,15 +143,52 @@ impl ShaderProgram {
         }
     }
 
+    #[inline]
     pub fn use_program(&self) {
         unsafe {
             gl::UseProgram(self.id);
         }
     }
 
+    #[inline]
     pub fn set_uniform_int(&self, loc: i32, value: i32) {
         unsafe {
             gl::Uniform1i(loc, value);
+        }
+    }
+
+    #[inline]
+    pub fn set_uniform_bool(&self, loc: i32, value: bool) {
+        unsafe {
+            gl::Uniform1i(loc, value as i32);
+        }
+    }
+
+    #[inline]
+    pub fn set_uniform_1i(&self, loc: i32, value: i32) {
+        unsafe {
+            gl::Uniform1i(loc, value);
+        }
+    }
+
+    #[inline]
+    pub fn set_uniform_1f(&self, loc: i32, value: f32) {
+        unsafe {
+            gl::Uniform1f(loc, value);
+        }
+    }
+
+    #[inline]
+    pub fn set_uniform_2fv(&self, loc: i32, value: &Vector2<f32>) {
+        unsafe {
+            gl::Uniform2fv(loc, 1, value.as_ptr());
+        }
+    }
+
+    #[inline]
+    pub fn set_uniform_3fv(&self, loc: i32, value: &Vector3<f32>) {
+        unsafe {
+            gl::Uniform3fv(loc, 1, value.as_ptr());
         }
     }
 }
@@ -272,24 +310,20 @@ impl Drop for VertexArray {
     }
 }
 
-pub struct Render {}
-
-impl Render {
-    pub fn draw_elemens(mode: GLenum, first: u32, count: u32) {
-        unsafe {
-            gl::DrawElements(
-                mode,
-                count as GLsizei,
-                gl::UNSIGNED_INT,
-                (first as usize) as *const c_void,
-            );
-        }
+pub fn draw_elemens(mode: GLenum, first: u32, count: u32) {
+    unsafe {
+        gl::DrawElements(
+            mode,
+            count as GLsizei,
+            gl::UNSIGNED_INT,
+            (first as usize) as *const c_void,
+        );
     }
+}
 
-    pub fn draw_arrays(mode: GLenum, first: u32, count: u32) {
-        unsafe {
-            gl::DrawArrays(mode, first as GLint, count as GLsizei);
-        }
+pub fn draw_arrays(mode: GLenum, first: u32, count: u32) {
+    unsafe {
+        gl::DrawArrays(mode, first as GLint, count as GLsizei);
     }
 }
 
@@ -354,4 +388,84 @@ impl Drop for Texture {
             gl::DeleteTextures(1, &self.id);
         }
     }
+}
+
+pub struct VertexDataBlock<'a> {
+    vertex_size: usize,
+    data: &'a [f32],
+}
+
+impl<'a> VertexDataBlock<'a> {
+    pub fn new(vertex_size: usize, data: &'a [f32]) -> Result<Self, MyError> {
+        if vertex_size == 0 {
+            return Err("vertex_size is zero".into());
+        }
+
+        if data.len() == 0 || data.len() % vertex_size != 0 {
+            return Err("Invalid data size".into());
+        }
+
+        Ok(Self {
+            vertex_size,
+            data: data,
+        })
+    }
+
+    #[inline]
+    pub fn vertex_size(&self) -> usize {
+        self.vertex_size
+    }
+
+    #[inline]
+    pub fn data(&self) -> &[f32] {
+        &self.data
+    }
+
+    #[inline]
+    pub fn num_of_vertices(&self) -> usize {
+        self.data.len() / self.vertex_size
+    }
+
+    #[inline]
+    pub fn get_slice(&self, start: usize) -> Result<&[f32], MyError> {
+        if start + self.vertex_size > self.data.len() {
+            return Err("Invalid start".into());
+        }
+
+        Ok(&self.data[start..(start + self.vertex_size)])
+    }
+}
+
+pub fn interleave_vertex_data(blocks: &[VertexDataBlock]) -> Result<Vec<f32>, MyError> {
+    if blocks.len() == 0 {
+        return Err("blocks is empty".into());
+    }
+
+    let num_of_vertices = blocks[0].num_of_vertices();
+    let valid = blocks
+        .iter()
+        .skip(1)
+        .all(|v| v.num_of_vertices() == num_of_vertices);
+
+    if !valid {
+        return Err("blocks don't have the same number of vertices".into());
+    }
+
+    let total_len: usize = blocks.iter().map(|v| v.data().len()).sum();
+    let mut result: Vec<f32> = vec![0_f32; total_len];
+    let mut block_offsets = vec![0_usize; blocks.len()];
+    let mut offset: usize = 0;
+
+    while offset < total_len {
+        for (i, b) in blocks.iter().enumerate() {
+            let vertex_size = b.vertex_size();
+            let src = b.get_slice(block_offsets[i])?;
+            let dst = &mut result[offset..(offset + vertex_size)];
+            dst.copy_from_slice(src);
+            block_offsets[i] += vertex_size;
+            offset += vertex_size;
+        }
+    }
+
+    Ok(result)
 }
