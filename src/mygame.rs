@@ -2,15 +2,24 @@ use crate::myopengl::*;
 use crate::myrender::*;
 use crate::mytypes::*;
 use cgmath::{Vector2, Vector3};
+use json::JsonValue;
 use std::rc::Rc;
 
 pub struct MeshTemplate {
-    pub renderer: Rc<SimpleRender>,
     pub va: VertexArray,
     pub z: f32,
     pub color: Option<Vector3<f32>>,
     pub tex: Option<Texture>,
     pub alpha: f32,
+}
+
+impl MeshTemplate {
+    pub fn from_json(value: &JsonValue, renderer: &ShaderProgram) -> Result<Self, MyError> {
+
+
+
+        todo!()
+    }
 }
 
 pub struct Mesh {
@@ -20,9 +29,8 @@ pub struct Mesh {
 }
 
 impl Mesh {
-    fn draw(&self) {
+    fn draw(&self, renderer: &SimpleRender) {
         let template = self.template.as_ref();
-        let renderer = template.renderer.as_ref();
 
         renderer.set_use_obj_ref(true);
         renderer.set_obj_ref(&self.pos);
