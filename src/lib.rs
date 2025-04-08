@@ -11,15 +11,15 @@ use myrender::*;
 use mytypes::*;
 
 pub struct App {
-    glfw: Glfw,
-    window: PWindow,
-    events: GlfwReceiver<(f64, WindowEvent)>,
     simple_render: SimpleRender,
     va: VertexArray,
     texture: Texture,
     viewport_origin: Vector2<f32>,
     viewport_size: Vector2<f32>,
     obj_ref: Vector2<f32>,
+    glfw: Glfw,
+    window: PWindow,
+    events: GlfwReceiver<(f64, WindowEvent)>,
 }
 
 impl App {
@@ -34,9 +34,6 @@ impl App {
         let texture = Texture::new("res/container.jpg")?;
 
         Ok(Self {
-            glfw,
-            window,
-            events,
             simple_render,
             va,
             texture,
@@ -52,6 +49,9 @@ impl App {
                 x: width as f32 / 2.0,
                 y: height as f32 / 2.0,
             },
+            glfw,
+            window,
+            events,
         })
     }
 

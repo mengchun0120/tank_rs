@@ -91,7 +91,7 @@ impl ShaderProgram {
         unsafe {
             let id = gl::CreateProgram();
             if id == 0 {
-                return Err(format!("Failed to create program").into());
+                return Err("Failed to create program".into());
             }
 
             gl::AttachShader(id, vertex_shader.id);
