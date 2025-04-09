@@ -39,3 +39,8 @@ pub fn rgba_from_json(value: &JsonValue) -> Result<Vector4<f32>, MyError> {
         color_parts[3],
     ))
 }
+
+pub fn alpha_from_json(value: &JsonValue) -> Result<f32, MyError> {
+    let a = value.as_u8().ok_or("Invalid alpha")?;
+    Ok(a as f32 / 255.0)
+}

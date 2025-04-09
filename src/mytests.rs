@@ -140,7 +140,7 @@ mod test_vertex_data_block {
 }
 
 mod test_color_from_json {
-    use crate::myjsonutils::{rgb_from_json, rgba_from_json};
+    use crate::myjsonutils::{rgb_from_json, rgba_from_json, alpha_from_json};
 
     #[test]
     fn rgb_from_json_works() {
@@ -177,5 +177,21 @@ mod test_color_from_json {
         let json_value = json::parse(json_data).unwrap();
         let color = rgba_from_json(&json_value);
         assert!(color.is_err());
+    }
+
+    #[test]
+    fn alpha_from_json_works() {
+        let json_data = r#"255"#;
+        let json_value = json::parse(json_data).unwrap();
+        let alpha = alpha_from_json(&json_value).unwrap();
+        assert_eq!(alpha, 1.0);
+    }
+
+    #[test]
+    fn alpha_from_json_fails() {
+        let json_data = r#"256"#;
+        let json_value = json::parse(json_data).unwrap();
+        let alpha = alpha_from_json(&json_value);
+        assert!(alpha.is_err());
     }
 }
