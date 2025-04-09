@@ -3,6 +3,7 @@ mod myopengl;
 mod myrender;
 mod mytests;
 mod mytypes;
+mod myjsonutils;
 
 use cgmath::Vector2;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
@@ -97,8 +98,8 @@ impl App {
         let positions = &[-50.0, -50.0, 50.0, -50.0, 50.0, 50.0, -50.0, 50.0];
         let tex_coords = &[0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0];
         let blocks = vec![
-            VertexDataBlock::new(2, positions)?,
-            VertexDataBlock::new(2, tex_coords)?,
+            VertexDataBlock::new("", 2, positions)?,
+            VertexDataBlock::new("", 2, tex_coords)?,
         ];
         let vertices = interleave_vertex_data(&blocks)?;
         let indices = [0, 1, 3, 1, 2, 3];

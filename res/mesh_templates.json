@@ -1,12 +1,14 @@
-{
-    "tile": {
+[
+    {
+        "name": "tile",
         "va": {
             "indices": [
                 0, 1, 2, 0, 2, 3
             ],
-            "vertices": {
-                "position": {
-                    "size": 2,
+            "blocks": [
+                {
+                    "name": "position",
+                    "vertex_size": 2,
                     "data": [
                         -20.0, -20.0,
                         20.0, -20.0,
@@ -14,8 +16,9 @@
                         -20.0, 20.0
                     ]
                 },
-                "texPos": {
-                    "size": 2,
+                {
+                    "name": "texPos",
+                    "vertex_size": 2,
                     "data": [
                         0.0, 0.0,
                         1.0, 0.0,
@@ -23,10 +26,9 @@
                         0.0, 1.0
                     ]
                 }
-            }
+            ]
         },
         "z": -0.5,
-        "color": [255, 255, 0],
-        "alpha": 1.0
+        "texture": "container.png"
     }
-}
+]

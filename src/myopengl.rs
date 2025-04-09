@@ -2,6 +2,7 @@ use crate::mytypes::MyError;
 use cgmath::{Vector2, Vector3, prelude::*};
 use gl::types::*;
 use image::EncodableLayout;
+use json::JsonValue;
 use std::os::raw::c_void;
 use std::{ffi::CString, fmt::Display, fs, mem, ptr, str};
 
@@ -203,13 +204,13 @@ impl Drop for ShaderProgram {
 
 pub struct VertexAttribPointer {
     index: u32,
-    size: u32,
+    size: usize,
     stride: usize,
     offset: usize,
 }
 
 impl VertexAttribPointer {
-    pub fn new(index: u32, size: u32, stride: usize, offset: usize) -> Self {
+    pub fn new(index: u32, size: usize, stride: usize, offset: usize) -> Self {
         Self {
             index,
             size,
@@ -281,6 +282,46 @@ impl VertexArray {
             ebo,
             vertice_count: indices.len(),
         })
+    }
+
+    pub fn from_blocks(blocks: &[VertexDataBlock], indices: &[i32], program: &ShaderProgram) -> Result<Self, MyError> {
+        if blocks.len() == 0 {
+            return Err("blocks is empty".into());
+        }
+
+        let vertices = interleave_vertex_data(blocks)?;
+        let stride: usize = blocks.iter().map(|b| b.vertex_size()).sum();
+        let mut offset: usize = 0;
+        let mut pointers = Vec::new();
+
+        for b in blocks.iter() {
+            let index = program.get_attrib_loc(b.name())?;
+            pointers.push(VertexAttribPointer::new(
+                index as u32,
+                b.vertex_size(),
+                stride,
+                offset,
+            ));
+            offset += b.vertex_size();
+        }
+
+        todo!()
+    }
+
+    pub fn from_json(json: &JsonValue, program: &ShaderProgram) -> Result<Self, MyError> {
+        let mut blocks = Vec::new();
+        for b in json["blocks"].members() {
+            let block = VertexDataBlock::from_json(b)?;
+            blocks.push(block);
+        }
+
+        let mut indices = Vec::new();
+        for i in json["indices"].members() {
+            let index = i.as_i32().ok_or("Invalid index")?;
+            indices.push(index);
+        }
+
+        Self::from_blocks(&blocks, &indices, program)
     }
 
     #[inline]
@@ -409,13 +450,14 @@ impl Drop for Texture {
     }
 }
 
-pub struct VertexDataBlock<'a> {
+pub struct VertexDataBlock {
+    name: String,
     vertex_size: usize,
-    data: &'a [f32],
+    data: Vec<f32>,
 }
 
-impl<'a> VertexDataBlock<'a> {
-    pub fn new(vertex_size: usize, data: &'a [f32]) -> Result<Self, MyError> {
+impl VertexDataBlock {
+    pub fn new(name: &str, vertex_size: usize, data: &[f32]) -> Result<Self, MyError> {
         if vertex_size == 0 {
             return Err("vertex_size is zero".into());
         }
@@ -425,9 +467,26 @@ impl<'a> VertexDataBlock<'a> {
         }
 
         Ok(Self {
+            name: name.to_string(),
             vertex_size,
-            data: data,
+            data: data.to_vec(),
         })
+    }
+
+    pub fn from_json(obj: &JsonValue) -> Result<Self, MyError> {
+        let name = obj["name"].as_str().ok_or("Invalid name")?;
+        let vertex_size = obj["vertex_size"].as_usize().ok_or("Invalid vertex size")?;
+        let mut data = Vec::new();
+        for m in obj["data"].members() {
+            let x = m.as_f32().ok_or("Invalid data")?;
+            data.push(x);
+        }
+        Self::new(name, vertex_size, &data)
+    }
+
+    #[inline]
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     #[inline]

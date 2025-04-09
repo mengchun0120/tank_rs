@@ -6,6 +6,7 @@ use json::JsonValue;
 use std::rc::Rc;
 
 pub struct MeshTemplate {
+    pub name: String,
     pub va: VertexArray,
     pub z: f32,
     pub color: Option<Vector3<f32>>,
@@ -14,9 +15,9 @@ pub struct MeshTemplate {
 }
 
 impl MeshTemplate {
-    pub fn from_json(value: &JsonValue, renderer: &ShaderProgram) -> Result<Self, MyError> {
-
-
+    pub fn from_json(value: &JsonValue, program: &ShaderProgram) -> Result<Self, MyError> {
+        let name = value["name"].as_str().ok_or("Invalid name")?.to_string();
+        let z = value["z"].as_f32().ok_or("Invalid z")?;
 
         todo!()
     }
