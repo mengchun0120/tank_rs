@@ -1,6 +1,6 @@
 use crate::myopengl::ShaderProgram;
 use crate::mytypes::MyError;
-use cgmath::{Vector2, Vector3};
+use cgmath::{Vector2, Vector3, Vector4};
 
 pub struct SimpleRender {
     program: ShaderProgram,
@@ -15,6 +15,7 @@ pub struct SimpleRender {
     z_loc: i32,
     use_color_loc: i32,
     color_loc: i32,
+    use_tex_color_loc: i32,
     tex_color_loc: i32,
     tex_unit_loc: i32,
     alpha_loc: i32,
@@ -35,6 +36,7 @@ impl SimpleRender {
             z_loc: program.get_uniform_loc("z")?,
             use_color_loc: program.get_uniform_loc("useColor")?,
             color_loc: program.get_uniform_loc("color")?,
+            use_tex_color_loc: program.get_uniform_loc("useTexColor")?,
             tex_color_loc: program.get_uniform_loc("texColor")?,
             tex_unit_loc: program.get_uniform_loc("texUnit")?,
             alpha_loc: program.get_uniform_loc("alpha")?,
@@ -45,6 +47,11 @@ impl SimpleRender {
     #[inline]
     pub fn apply(&self) {
         self.program.use_program();
+    }
+
+    #[inline]
+    pub fn program(&self) -> &ShaderProgram {
+        &self.program
     }
 
     pub fn position_loc(&self) -> i32 {
@@ -102,6 +109,16 @@ impl SimpleRender {
     #[inline]
     pub fn set_color(&self, color: &Vector3<f32>) {
         self.program.set_uniform_3fv(self.color_loc, color);
+    }
+
+    #[inline]
+    pub fn set_use_tex_color(&self, use_tex_color: bool) {
+        self.program.set_uniform_bool(self.use_tex_color_loc, use_tex_color);
+    }
+
+    #[inline]
+    pub fn set_tex_color(&self, tex_color: &Vector4<f32>) {
+        self.program.set_uniform_4fv(self.tex_color_loc, tex_color);
     }
 
     #[inline]

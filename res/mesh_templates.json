@@ -29,6 +29,6 @@
             ]
         },
         "z": -0.5,
-        "texture": "container.png"
+        "texture": "res/texture/container.png"
     }
 ]

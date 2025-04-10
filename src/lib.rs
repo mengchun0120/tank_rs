@@ -5,19 +5,20 @@ mod mytests;
 mod mytypes;
 mod myjsonutils;
 
+use std::{fs, collections::HashMap, rc::Rc};
 use cgmath::Vector2;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use myopengl::*;
 use myrender::*;
 use mytypes::*;
+use mygame::*;
 
 pub struct App {
     simple_render: SimpleRender,
-    va: VertexArray,
-    texture: Texture,
+    mesh_templates: HashMap<String, Rc<MeshTemplate>>,
+    mesh: Mesh,
     viewport_origin: Vector2<f32>,
     viewport_size: Vector2<f32>,
-    obj_ref: Vector2<f32>,
     glfw: Glfw,
     window: PWindow,
     events: GlfwReceiver<(f64, WindowEvent)>,
@@ -27,29 +28,35 @@ impl App {
     pub fn new(width: u32, height: u32, title: &str) -> Result<Self, MyError> {
         let mut glfw = Self::init_glfw()?;
         let (window, events) = Self::init_window(&mut glfw, width, height, title)?;
+
         let simple_render = SimpleRender::new(
             "res/glsl/simple_vertex_shader.glsl",
             "res/glsl/simple_frag_shader.glsl",
         )?;
-        let va = Self::init_vertex_array(&simple_render)?;
-        let texture = Texture::new("res/container.jpg")?;
+        
+        let mesh_templates = Self::load_mesh_templates(simple_render.program())?;
+
+        let template = mesh_templates
+            .get("tile")
+            .ok_or("Mesh template not found")?;
+        let mesh = Mesh::new(template.clone(), Vector2{x: 200.0, y: 200.0}, Vector2{x: 1.0, y: 0.0});
+    
+
+        let viewport_origin = Vector2 {
+            x: width as f32 / 2.0,
+            y: height as f32 / 2.0,
+        };
+        let viewport_size = Vector2 {
+            x: width as f32,
+            y: height as f32,
+        };
 
         Ok(Self {
             simple_render,
-            va,
-            texture,
-            viewport_origin: Vector2 {
-                x: width as f32 / 2.0,
-                y: height as f32 / 2.0,
-            },
-            viewport_size: Vector2 {
-                x: width as f32,
-                y: height as f32,
-            },
-            obj_ref: Vector2 {
-                x: width as f32 / 2.0,
-                y: height as f32 / 2.0,
-            },
+            mesh_templates,
+            mesh,
+            viewport_origin,
+            viewport_size,
             glfw,
             window,
             events,
@@ -111,6 +118,23 @@ impl App {
         VertexArray::new(&vertices, &indices, &pointers)
     }
 
+    fn load_mesh_templates(
+        program: &ShaderProgram,
+    ) -> Result<HashMap<String, Rc<MeshTemplate>>, MyError> {
+        let contents = fs::read_to_string("res/mesh_template.json")
+            .map_err(|_| "Failed to read mesh template file")?;
+        let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
+
+        let mut templates = HashMap::new();
+
+        for t in json_value.members() {
+            let template = MeshTemplate::from_json(t, program)?;    
+            templates.insert(template.name.clone(), Rc::new(template));
+        }
+        
+        Ok(templates)
+    }
+
     fn init_opengl(&self) {
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
@@ -118,6 +142,11 @@ impl App {
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             gl::Enable(gl::DEPTH_TEST);
         }
+
+        self.simple_render.apply();
+        self.simple_render
+            .set_viewport_origin(&self.viewport_origin);
+        self.simple_render.set_viewport_size(&self.viewport_size);
     }
 
     fn process_events(&mut self) {
@@ -137,19 +166,7 @@ impl App {
     fn render(&mut self) {
         self.clear_window();
         self.simple_render.apply();
-        self.simple_render
-            .set_viewport_origin(&self.viewport_origin);
-        self.simple_render.set_viewport_size(&self.viewport_size);
-        self.simple_render.set_use_direction(false);
-        self.simple_render.set_use_obj_ref(true);
-        self.simple_render.set_obj_ref(&self.obj_ref);
-        self.simple_render.set_z(0.0);
-        self.simple_render.set_alpha(1.0);
-        self.simple_render.set_tex_unit(0);
-        self.simple_render.set_use_color(false);
-        self.va.bind();
-        self.texture.bind(gl::TEXTURE0);
-        draw_elemens(gl::TRIANGLES, 0, 6);
+        self.mesh.draw(&self.simple_render);
     }
 
     fn post_update(&mut self) {

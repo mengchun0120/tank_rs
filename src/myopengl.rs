@@ -1,5 +1,5 @@
 use crate::mytypes::MyError;
-use cgmath::{Vector2, Vector3, prelude::*};
+use cgmath::{Vector2, Vector3, Vector4, prelude::*};
 use gl::types::*;
 use image::EncodableLayout;
 use json::JsonValue;
@@ -192,6 +192,13 @@ impl ShaderProgram {
             gl::Uniform3fv(loc, 1, value.as_ptr());
         }
     }
+
+    #[inline]
+    pub fn set_uniform_4fv(&self, loc: i32, value: &Vector4<f32>) {
+        unsafe {
+            gl::Uniform4fv(loc, 1, value.as_ptr());
+        }
+    }
 }
 
 impl Drop for ShaderProgram {
@@ -305,10 +312,18 @@ impl VertexArray {
             offset += b.vertex_size();
         }
 
-        todo!()
+        Ok(Self::new(&vertices, indices, &pointers)?)
     }
 
     pub fn from_json(json: &JsonValue, program: &ShaderProgram) -> Result<Self, MyError> {
+        if !json.has_key("blocks") {
+            return Err("Missing blocks".into());
+        }
+
+        if !json.has_key("indices") {
+            return Err("Missing indices".into());
+        }
+
         let mut blocks = Vec::new();
         for b in json["blocks"].members() {
             let block = VertexDataBlock::from_json(b)?;
@@ -474,6 +489,15 @@ impl VertexDataBlock {
     }
 
     pub fn from_json(obj: &JsonValue) -> Result<Self, MyError> {
+        if !obj.has_key("name") {
+            return Err("Missing name".into());
+        }
+        if !obj.has_key("vertex_size") {
+            return Err("Missing vertex_size".into());
+        }
+        if !obj.has_key("data") {
+            return Err("Missing data".into());
+        }
         let name = obj["name"].as_str().ok_or("Invalid name")?;
         let vertex_size = obj["vertex_size"].as_usize().ok_or("Invalid vertex size")?;
         let mut data = Vec::new();
