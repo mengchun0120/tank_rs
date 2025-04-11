@@ -11,7 +11,7 @@ pub struct MeshTemplate {
     pub va: VertexArray,
     pub z: f32,
     pub color: Option<Vector3<f32>>,
-    pub texColor: Option<Vector4<f32>>,
+    pub tex_color: Option<Vector4<f32>>,
     pub texture: Option<Texture>,
     pub alpha: f32,
 }
@@ -24,7 +24,7 @@ impl MeshTemplate {
 
         if !value.has_key("va") {
             return Err("Missing va".into());
-        }     
+        }
 
         let name = value["name"].as_str().ok_or("Invalid name")?.to_string();
         let va = VertexArray::from_json(&value["va"], program)?;
@@ -48,14 +48,14 @@ impl MeshTemplate {
             None
         };
 
-        let texColor = if value.has_key("texColor") {
+        let tex_color = if value.has_key("texColor") {
             Some(rgba_from_json(&value["texColor"])?)
         } else {
             None
         };
 
         let alpha = if value.has_key("alpha") {
-            value["alpha"].as_f32().ok_or("Invalid alpha")?
+            alpha_from_json(&value["alpha"])?
         } else {
             1.0
         };
@@ -65,7 +65,7 @@ impl MeshTemplate {
             va,
             z,
             color,
-            texColor,
+            tex_color,
             texture,
             alpha,
         })
@@ -101,7 +101,7 @@ impl Mesh {
         } else {
             renderer.set_use_color(false);
         }
-        if let Some(tc) = &template.texColor {
+        if let Some(tc) = &template.tex_color {
             renderer.set_use_tex_color(true);
             renderer.set_tex_color(tc);
         } else {
@@ -113,6 +113,6 @@ impl Mesh {
         }
         renderer.set_alpha(template.alpha);
         template.va.bind();
-        draw_arrays(gl::TRIANGLES, 0, template.va.vertice_count() as u32);
+        draw_elemens(DrawMode::Triangles, 0, template.va.vertice_count() as u32);
     }
 }

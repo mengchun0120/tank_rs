@@ -81,6 +81,7 @@ pub struct ShaderProgram {
     id: u32,
 }
 
+#[allow(unused)]
 impl ShaderProgram {
     pub fn new(vertex_shader_file: &str, frag_shader_file: &str) -> Result<Self, MyError> {
         let vertex_shader_source = fs::read_to_string(vertex_shader_file)?;
@@ -209,10 +210,17 @@ impl Drop for ShaderProgram {
     }
 }
 
+#[derive(Debug)]
 pub struct VertexAttribPointer {
+    /// The index of the vertex attribute
     index: u32,
+    /// The size of the vertex attribute (1, 2, 3, or 4)
     size: usize,
+    /// The stride of the vertex attribute (the byte offset between consecutive vertex attributes)
+    /// in terms of the number of floats
     stride: usize,
+    /// The offset of the vertex attribute in the vertex buffer
+    /// in terms of the number of floats
     offset: usize,
 }
 
@@ -291,9 +299,17 @@ impl VertexArray {
         })
     }
 
-    pub fn from_blocks(blocks: &[VertexDataBlock], indices: &[i32], program: &ShaderProgram) -> Result<Self, MyError> {
+    pub fn from_blocks(
+        blocks: &[VertexDataBlock],
+        indices: &[i32],
+        program: &ShaderProgram,
+    ) -> Result<Self, MyError> {
         if blocks.len() == 0 {
             return Err("blocks is empty".into());
+        }
+
+        if indices.len() == 0 {
+            return Err("indices is empty".into());
         }
 
         let vertices = interleave_vertex_data(blocks)?;
@@ -385,10 +401,28 @@ impl Drop for VertexArray {
     }
 }
 
-pub fn draw_elemens(mode: GLenum, first: u32, count: u32) {
+#[derive(Debug)]
+#[allow(unused)]
+pub enum DrawMode {
+    LineAdjacency = gl::LINES_ADJACENCY as isize,
+    LineLoop = gl::LINE_LOOP as isize,
+    Lines = gl::LINES as isize,
+    LineStrap = gl::LINE_STRIP as isize,
+    LineStripAdjacency = gl::LINE_STRIP_ADJACENCY as isize,
+    Patches = gl::PATCHES as isize,
+    Points = gl::POINTS as isize,
+    TriangleAdjacency = gl::TRIANGLES_ADJACENCY as isize,
+    TriangleFan = gl::TRIANGLE_FAN as isize,
+    Triangles = gl::TRIANGLES as isize,
+    TriangleStrip = gl::TRIANGLE_STRIP as isize,
+    TriangleStripAdjacency = gl::TRIANGLE_STRIP_ADJACENCY as isize,
+}
+
+#[allow(unused)]
+pub fn draw_elemens(mode: DrawMode, first: u32, count: u32) {
     unsafe {
         gl::DrawElements(
-            mode,
+            mode as GLenum,
             count as GLsizei,
             gl::UNSIGNED_INT,
             (first as usize) as *const c_void,
@@ -396,12 +430,14 @@ pub fn draw_elemens(mode: GLenum, first: u32, count: u32) {
     }
 }
 
-pub fn draw_arrays(mode: GLenum, first: u32, count: u32) {
+#[allow(unused)]
+pub fn draw_arrays(mode: DrawMode, first: u32, count: u32) {
     unsafe {
-        gl::DrawArrays(mode, first as GLint, count as GLsizei);
+        gl::DrawArrays(mode as GLenum, first as GLint, count as GLsizei);
     }
 }
 
+#[allow(unused)]
 pub struct Texture {
     width: u32,
     height: u32,
@@ -465,6 +501,7 @@ impl Drop for Texture {
     }
 }
 
+#[derive(Debug)]
 pub struct VertexDataBlock {
     name: String,
     vertex_size: usize,

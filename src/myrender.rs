@@ -2,6 +2,7 @@ use crate::myopengl::ShaderProgram;
 use crate::mytypes::MyError;
 use cgmath::{Vector2, Vector3, Vector4};
 
+#[allow(unused)]
 pub struct SimpleRender {
     program: ShaderProgram,
     position_loc: i32,
@@ -21,6 +22,7 @@ pub struct SimpleRender {
     alpha_loc: i32,
 }
 
+#[allow(unused)]
 impl SimpleRender {
     pub fn new(vertex_shader_file: &str, frag_shader_file: &str) -> Result<Self, MyError> {
         let program = ShaderProgram::new(vertex_shader_file, frag_shader_file)?;
@@ -54,10 +56,12 @@ impl SimpleRender {
         &self.program
     }
 
+    #[inline]
     pub fn position_loc(&self) -> i32 {
         self.position_loc
     }
 
+    #[inline]
     pub fn tex_pos_loc(&self) -> i32 {
         self.tex_pos_loc
     }
@@ -113,7 +117,8 @@ impl SimpleRender {
 
     #[inline]
     pub fn set_use_tex_color(&self, use_tex_color: bool) {
-        self.program.set_uniform_bool(self.use_tex_color_loc, use_tex_color);
+        self.program
+            .set_uniform_bool(self.use_tex_color_loc, use_tex_color);
     }
 
     #[inline]

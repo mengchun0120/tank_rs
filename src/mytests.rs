@@ -139,8 +139,9 @@ mod test_vertex_data_block {
     }
 }
 
+#[cfg(test)]
 mod test_color_from_json {
-    use crate::myjsonutils::{rgb_from_json, rgba_from_json, alpha_from_json};
+    use crate::myjsonutils::{alpha_from_json, rgb_from_json, rgba_from_json};
 
     #[test]
     fn rgb_from_json_works() {

@@ -1,17 +1,17 @@
 mod mygame;
+mod myjsonutils;
 mod myopengl;
 mod myrender;
 mod mytests;
 mod mytypes;
-mod myjsonutils;
 
-use std::{fs, collections::HashMap, rc::Rc};
 use cgmath::Vector2;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
+use mygame::*;
 use myopengl::*;
 use myrender::*;
 use mytypes::*;
-use mygame::*;
+use std::{collections::HashMap, fs, rc::Rc};
 
 pub struct App {
     simple_render: SimpleRender,
@@ -33,14 +33,18 @@ impl App {
             "res/glsl/simple_vertex_shader.glsl",
             "res/glsl/simple_frag_shader.glsl",
         )?;
-        
+
         let mesh_templates = Self::load_mesh_templates(simple_render.program())?;
 
         let template = mesh_templates
             .get("tile")
             .ok_or("Mesh template not found")?;
-        let mesh = Mesh::new(template.clone(), Vector2{x: 200.0, y: 200.0}, Vector2{x: 1.0, y: 0.0});
-    
+
+        let mesh = Mesh::new(
+            template.clone(),
+            Vector2 { x: 200.0, y: 200.0 },
+            Vector2 { x: 1.0, y: 0.0 },
+        );
 
         let viewport_origin = Vector2 {
             x: width as f32 / 2.0,
@@ -101,37 +105,20 @@ impl App {
         Ok((window, events))
     }
 
-    fn init_vertex_array(simple_renderer: &SimpleRender) -> Result<VertexArray, MyError> {
-        let positions = &[-50.0, -50.0, 50.0, -50.0, 50.0, 50.0, -50.0, 50.0];
-        let tex_coords = &[0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0];
-        let blocks = vec![
-            VertexDataBlock::new("", 2, positions)?,
-            VertexDataBlock::new("", 2, tex_coords)?,
-        ];
-        let vertices = interleave_vertex_data(&blocks)?;
-        let indices = [0, 1, 3, 1, 2, 3];
-        let pointers = [
-            VertexAttribPointer::new(simple_renderer.position_loc() as u32, 2, 4, 0),
-            VertexAttribPointer::new(simple_renderer.tex_pos_loc() as u32, 2, 4, 2),
-        ];
-
-        VertexArray::new(&vertices, &indices, &pointers)
-    }
-
     fn load_mesh_templates(
         program: &ShaderProgram,
     ) -> Result<HashMap<String, Rc<MeshTemplate>>, MyError> {
-        let contents = fs::read_to_string("res/mesh_template.json")
+        let contents = fs::read_to_string("res/mesh_templates.json")
             .map_err(|_| "Failed to read mesh template file")?;
         let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
 
         let mut templates = HashMap::new();
 
         for t in json_value.members() {
-            let template = MeshTemplate::from_json(t, program)?;    
+            let template = MeshTemplate::from_json(t, program)?;
             templates.insert(template.name.clone(), Rc::new(template));
         }
-        
+
         Ok(templates)
     }
 
