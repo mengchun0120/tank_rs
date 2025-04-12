@@ -3,7 +3,7 @@ use crate::mytypes::MyError;
 use cgmath::{Vector2, Vector3, Vector4};
 
 #[allow(unused)]
-pub struct SimpleRender {
+pub struct SimpleRenderer {
     program: ShaderProgram,
     position_loc: i32,
     tex_pos_loc: i32,
@@ -23,7 +23,7 @@ pub struct SimpleRender {
 }
 
 #[allow(unused)]
-impl SimpleRender {
+impl SimpleRenderer {
     pub fn new(vertex_shader_file: &str, frag_shader_file: &str) -> Result<Self, MyError> {
         let program = ShaderProgram::new(vertex_shader_file, frag_shader_file)?;
         Ok(Self {

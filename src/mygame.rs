@@ -1,10 +1,10 @@
 use crate::myjsonutils::*;
 use crate::myopengl::*;
-use crate::myrender::*;
+use crate::myrenderer::*;
 use crate::mytypes::*;
 use cgmath::{Vector2, Vector3, Vector4};
 use json::JsonValue;
-use std::rc::Rc;
+use std::{collections::HashMap, fs, rc::Rc};
 
 pub struct MeshTemplate {
     pub name: String,
@@ -72,6 +72,55 @@ impl MeshTemplate {
     }
 }
 
+pub struct GameLib {
+    simple_renderer: SimpleRenderer,
+    mesh_templates: HashMap<String, Rc<MeshTemplate>>,
+}
+
+impl GameLib {
+    pub fn load() -> Result<Self, MyError> {
+        let simple_renderer = SimpleRenderer::new(
+            "res/glsl/simple_vertex_shader.glsl",
+            "res/glsl/simple_frag_shader.glsl",
+        )?;
+
+        let mesh_templates = Self::load_mesh_templates(simple_renderer.program())?;
+
+        Ok(Self {
+            simple_renderer,
+            mesh_templates,
+        })
+    }
+
+    pub fn find_mesh_template(&self, name: &str) -> Result<&Rc<MeshTemplate>, MyError> {
+        self.mesh_templates
+            .get(name)
+            .ok_or(format!("Failed to find MeshTemplate {}", name).into())
+    }
+
+    #[inline]
+    pub fn simple_renderer(&self) -> &SimpleRenderer {
+        &self.simple_renderer
+    }
+
+    fn load_mesh_templates(
+        program: &ShaderProgram,
+    ) -> Result<HashMap<String, Rc<MeshTemplate>>, MyError> {
+        let contents = fs::read_to_string("res/mesh_templates.json")
+            .map_err(|_| "Failed to read mesh template file")?;
+        let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
+
+        let mut templates = HashMap::new();
+
+        for t in json_value.members() {
+            let template = MeshTemplate::from_json(t, program)?;
+            templates.insert(template.name.clone(), Rc::new(template));
+        }
+
+        Ok(templates)
+    }
+}
+
 pub struct Mesh {
     pub template: Rc<MeshTemplate>,
     pub pos: Vector2<f32>,
@@ -87,7 +136,7 @@ impl Mesh {
         }
     }
 
-    pub fn draw(&self, renderer: &SimpleRender) {
+    pub fn draw(&self, renderer: &SimpleRenderer) {
         let template = self.template.as_ref();
 
         renderer.set_use_obj_ref(true);

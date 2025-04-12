@@ -1,22 +1,18 @@
 mod mygame;
 mod myjsonutils;
 mod myopengl;
-mod myrender;
+mod myrenderer;
 mod mytests;
 mod mytypes;
 
 use cgmath::Vector2;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use mygame::*;
-use myopengl::*;
-use myrender::*;
 use mytypes::*;
-use std::{collections::HashMap, fs, rc::Rc};
 
 pub struct App {
-    simple_render: SimpleRender,
-    mesh_templates: HashMap<String, Rc<MeshTemplate>>,
     mesh: Mesh,
+    lib: GameLib,
     viewport_origin: Vector2<f32>,
     viewport_size: Vector2<f32>,
     glfw: Glfw,
@@ -29,19 +25,10 @@ impl App {
         let mut glfw = Self::init_glfw()?;
         let (window, events) = Self::init_window(&mut glfw, width, height, title)?;
 
-        let simple_render = SimpleRender::new(
-            "res/glsl/simple_vertex_shader.glsl",
-            "res/glsl/simple_frag_shader.glsl",
-        )?;
-
-        let mesh_templates = Self::load_mesh_templates(simple_render.program())?;
-
-        let template = mesh_templates
-            .get("tile")
-            .ok_or("Mesh template not found")?;
+        let lib = GameLib::load()?;
 
         let mesh = Mesh::new(
-            template.clone(),
+            lib.find_mesh_template("tile")?.clone(),
             Vector2 { x: 200.0, y: 200.0 },
             Vector2 { x: 1.0, y: 0.0 },
         );
@@ -56,9 +43,8 @@ impl App {
         };
 
         Ok(Self {
-            simple_render,
-            mesh_templates,
             mesh,
+            lib,
             viewport_origin,
             viewport_size,
             glfw,
@@ -105,23 +91,6 @@ impl App {
         Ok((window, events))
     }
 
-    fn load_mesh_templates(
-        program: &ShaderProgram,
-    ) -> Result<HashMap<String, Rc<MeshTemplate>>, MyError> {
-        let contents = fs::read_to_string("res/mesh_templates.json")
-            .map_err(|_| "Failed to read mesh template file")?;
-        let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
-
-        let mut templates = HashMap::new();
-
-        for t in json_value.members() {
-            let template = MeshTemplate::from_json(t, program)?;
-            templates.insert(template.name.clone(), Rc::new(template));
-        }
-
-        Ok(templates)
-    }
-
     fn init_opengl(&self) {
         unsafe {
             gl::ClearColor(0.2, 0.3, 0.3, 1.0);
@@ -130,10 +99,10 @@ impl App {
             gl::Enable(gl::DEPTH_TEST);
         }
 
-        self.simple_render.apply();
-        self.simple_render
-            .set_viewport_origin(&self.viewport_origin);
-        self.simple_render.set_viewport_size(&self.viewport_size);
+        let renderer = self.lib.simple_renderer();
+        renderer.apply();
+        renderer.set_viewport_origin(&self.viewport_origin);
+        renderer.set_viewport_size(&self.viewport_size);
     }
 
     fn process_events(&mut self) {
@@ -152,8 +121,9 @@ impl App {
 
     fn render(&mut self) {
         self.clear_window();
-        self.simple_render.apply();
-        self.mesh.draw(&self.simple_render);
+        let renderer = self.lib.simple_renderer();
+        renderer.apply();
+        self.mesh.draw(renderer);
     }
 
     fn post_update(&mut self) {
