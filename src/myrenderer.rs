@@ -2,7 +2,6 @@ use crate::myopengl::ShaderProgram;
 use crate::mytypes::MyError;
 use cgmath::{Vector2, Vector3, Vector4};
 
-#[allow(unused)]
 pub struct SimpleRenderer {
     program: ShaderProgram,
     position_loc: i32,
@@ -22,7 +21,6 @@ pub struct SimpleRenderer {
     alpha_loc: i32,
 }
 
-#[allow(unused)]
 impl SimpleRenderer {
     pub fn new(vertex_shader_file: &str, frag_shader_file: &str) -> Result<Self, MyError> {
         let program = ShaderProgram::new(vertex_shader_file, frag_shader_file)?;

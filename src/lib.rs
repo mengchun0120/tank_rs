@@ -2,16 +2,18 @@ mod mygame;
 mod myjsonutils;
 mod myopengl;
 mod myrenderer;
+mod mytemplates;
 mod mytests;
 mod mytypes;
 
 use cgmath::Vector2;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use mygame::*;
+use mytemplates::*;
 use mytypes::*;
 
 pub struct App {
-    mesh: Mesh,
+    tile: GameObject,
     lib: GameLib,
     viewport_origin: Vector2<f32>,
     viewport_size: Vector2<f32>,
@@ -27,12 +29,6 @@ impl App {
 
         let lib = GameLib::load()?;
 
-        let mesh = Mesh::new(
-            lib.find_mesh_template("tile")?.clone(),
-            Vector2 { x: 200.0, y: 200.0 },
-            Vector2 { x: 1.0, y: 0.0 },
-        );
-
         let viewport_origin = Vector2 {
             x: width as f32 / 2.0,
             y: height as f32 / 2.0,
@@ -42,8 +38,10 @@ impl App {
             y: height as f32,
         };
 
+        let tile = Self::init_game_obj(&lib)?;
+
         Ok(Self {
-            mesh,
+            tile,
             lib,
             viewport_origin,
             viewport_size,
@@ -105,6 +103,16 @@ impl App {
         renderer.set_viewport_size(&self.viewport_size);
     }
 
+    fn init_game_obj(lib: &GameLib) -> Result<GameObject, MyError> {
+        let template = lib.find_game_obj_template("tile")?;
+        let obj = GameObject::new(
+            template.clone(),
+            Vector2 { x: 200.0, y: 200.0 },
+            Vector2 { x: 1.0, y: 0.0 },
+        );
+        Ok(obj)
+    }
+
     fn process_events(&mut self) {
         for (_, event) in glfw::flush_messages(&self.events) {
             match event {
@@ -123,7 +131,7 @@ impl App {
         self.clear_window();
         let renderer = self.lib.simple_renderer();
         renderer.apply();
-        self.mesh.draw(renderer);
+        self.tile.draw(renderer);
     }
 
     fn post_update(&mut self) {
