@@ -13,6 +13,7 @@ use mytemplates::*;
 use mytypes::*;
 
 pub struct App {
+    settings: Settings,
     tile: GameObject,
     lib: GameLib,
     viewport_origin: Vector2<f32>,
@@ -23,11 +24,16 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(width: u32, height: u32, title: &str) -> Result<Self, MyError> {
+    pub fn new(settings_file: &str) -> Result<Self, MyError> {
+        let settings = Settings::new(settings_file)?;
+        let width = settings.get_u32("width")?;
+        let height = settings.get_u32("height")?;
+        let title = settings.get_str("title")?;
+
         let mut glfw = Self::init_glfw()?;
         let (window, events) = Self::init_window(&mut glfw, width, height, title)?;
 
-        let lib = GameLib::load()?;
+        let lib = GameLib::load(&settings)?;
 
         let viewport_origin = Vector2 {
             x: width as f32 / 2.0,
@@ -41,6 +47,7 @@ impl App {
         let tile = Self::init_game_obj(&lib)?;
 
         Ok(Self {
+            settings,
             tile,
             lib,
             viewport_origin,

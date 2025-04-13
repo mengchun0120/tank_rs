@@ -1,5 +1,6 @@
 use cgmath::{Vector3, Vector4};
 use json::JsonValue;
+use std::{fs, path::Path};
 
 use crate::mytypes::MyError;
 
@@ -39,4 +40,10 @@ pub fn rgba_from_json(value: &JsonValue) -> Result<Vector4<f32>, MyError> {
 pub fn alpha_from_json(value: &JsonValue) -> Result<f32, MyError> {
     let a = value.as_u8().ok_or("Invalid alpha")?;
     Ok(a as f32 / 255.0)
+}
+
+pub fn json_from_file<T: AsRef<Path>>(path: T) -> Result<JsonValue, MyError> {
+    let json_str = fs::read_to_string(path)?;
+    let obj = json::parse(&json_str).map_err(|e| format!("Failed to parse JSON: {}", e))?;
+    Ok(obj)
 }

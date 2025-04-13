@@ -6,6 +6,37 @@ use cgmath::{Vector3, Vector4};
 use json::JsonValue;
 use std::{collections::HashMap, fs, rc::Rc};
 
+pub struct Settings {
+    settings: JsonValue,
+}
+
+impl Settings {
+    pub fn new(file: &str) -> Result<Self, MyError> {
+        let settings = json_from_file(file)?;
+        Ok(Self { settings })
+    }
+
+    pub fn get_str(&self, name: &str) -> Result<&str, MyError> {
+        if !self.settings.has_key(name) {
+            return Err(format!("Cannot find {} in settings", name).into());
+        }
+
+        self.settings[name]
+            .as_str()
+            .ok_or(format!("Invalid str {} in settings", name).into())
+    }
+
+    pub fn get_u32(&self, name: &str) -> Result<u32, MyError> {
+        if !self.settings.has_key(name) {
+            return Err(format!("Cannot find {} in settings", name).into());
+        }
+
+        self.settings[name]
+            .as_u32()
+            .ok_or(format!("Invalid u32 {} in settings", name).into())
+    }
+}
+
 pub struct MeshTemplate {
     pub name: String,
     pub va: VertexArray,
@@ -81,14 +112,14 @@ pub struct GameLib {
 }
 
 impl GameLib {
-    pub fn load() -> Result<Self, MyError> {
+    pub fn load(settings: &Settings) -> Result<Self, MyError> {
         let simple_renderer = SimpleRenderer::new(
-            "res/glsl/simple_vertex_shader.glsl",
-            "res/glsl/simple_frag_shader.glsl",
+            settings.get_str("simple_vertex_shader")?,
+            settings.get_str("simple_frag_shader")?,
         )?;
 
-        let comp_template_lib = ComponentTemplateLib::load(&simple_renderer)?;
-        let game_obj_template_lib = Self::load_game_obj_template_lib(&comp_template_lib)?;
+        let comp_template_lib = ComponentTemplateLib::load(settings, &simple_renderer)?;
+        let game_obj_template_lib = Self::load_game_obj_template_lib(settings, &comp_template_lib)?;
 
         Ok(Self {
             simple_renderer,
@@ -114,9 +145,11 @@ impl GameLib {
     }
 
     fn load_game_obj_template_lib(
+        settings: &Settings,
         lib: &ComponentTemplateLib,
     ) -> Result<GameObjTemplateLib, MyError> {
-        let contents = fs::read_to_string("res/game_object_templates.json")?;
+        let file = settings.get_str("game_object_templates")?;
+        let contents = fs::read_to_string(file)?;
         let obj = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
         let mut game_obj_lib = GameObjTemplateLib::new();
 
@@ -134,8 +167,8 @@ pub struct ComponentTemplateLib {
 }
 
 impl ComponentTemplateLib {
-    pub fn load(renderer: &SimpleRenderer) -> Result<Self, MyError> {
-        let mesh_templates = Self::load_mesh_templates(renderer.program())?;
+    pub fn load(settings: &Settings, renderer: &SimpleRenderer) -> Result<Self, MyError> {
+        let mesh_templates = Self::load_mesh_templates(settings, renderer.program())?;
 
         Ok(Self { mesh_templates })
     }
@@ -147,10 +180,11 @@ impl ComponentTemplateLib {
     }
 
     fn load_mesh_templates(
+        settings: &Settings,
         program: &ShaderProgram,
     ) -> Result<HashMap<String, Rc<MeshTemplate>>, MyError> {
-        let contents = fs::read_to_string("res/mesh_templates.json")
-            .map_err(|_| "Failed to read mesh template file")?;
+        let file = settings.get_str("mesh_templates")?;
+        let contents = fs::read_to_string(file).map_err(|_| "Failed to read mesh template file")?;
         let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
 
         let mut templates = HashMap::new();

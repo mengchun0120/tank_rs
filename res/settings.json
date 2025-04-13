@@ -1,0 +1,9 @@
+{
+    "width": 800,
+    "height": 800,
+    "title": "Tank",
+    "mesh_templates": "res/mesh_templates.json",
+    "game_object_templates": "res/game_object_templates.json",
+    "simple_vertex_shader": "res/glsl/simple_vertex_shader.glsl",
+    "simple_frag_shader": "res/glsl/simple_frag_shader.glsl"
+}

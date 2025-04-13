@@ -14,7 +14,6 @@ pub struct GameObject {
     state: GameObjectState,
     pos: Vector2<f32>,
     direction: Vector2<f32>,
-
 }
 
 impl GameObject {
