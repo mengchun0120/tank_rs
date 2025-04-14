@@ -2,6 +2,7 @@
     "width": 800,
     "height": 800,
     "title": "Tank",
+    "log_file": "tank.log",
     "mesh_templates": "res/mesh_templates.json",
     "game_object_templates": "res/game_object_templates.json",
     "simple_vertex_shader": "res/glsl/simple_vertex_shader.glsl",

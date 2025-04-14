@@ -5,6 +5,7 @@ use crate::mytypes::*;
 use cgmath::{Vector3, Vector4};
 use json::JsonValue;
 use std::{collections::HashMap, fs, rc::Rc};
+use log::info;
 
 pub struct Settings {
     settings: JsonValue,
@@ -113,6 +114,8 @@ pub struct GameLib {
 
 impl GameLib {
     pub fn load(settings: &Settings) -> Result<Self, MyError> {
+        info!("Loading GameLib");
+
         let simple_renderer = SimpleRenderer::new(
             settings.get_str("simple_vertex_shader")?,
             settings.get_str("simple_frag_shader")?,
@@ -120,6 +123,8 @@ impl GameLib {
 
         let comp_template_lib = ComponentTemplateLib::load(settings, &simple_renderer)?;
         let game_obj_template_lib = Self::load_game_obj_template_lib(settings, &comp_template_lib)?;
+
+        info!("GameLib loaded successfully");
 
         Ok(Self {
             simple_renderer,
@@ -149,14 +154,18 @@ impl GameLib {
         lib: &ComponentTemplateLib,
     ) -> Result<GameObjTemplateLib, MyError> {
         let file = settings.get_str("game_object_templates")?;
-        let contents = fs::read_to_string(file)?;
-        let obj = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
+
+        info!("Loading GameObjTemplateLib from {file}");
+
+        let obj = json_from_file(file)?;
         let mut game_obj_lib = GameObjTemplateLib::new();
 
         for t in obj.members() {
             let template = GameObjectTemplate::from_json(t, lib)?;
             game_obj_lib.insert(template.name.clone(), Rc::new(template));
         }
+
+        info!("GameObjTemplateLib loaded successfully");
 
         Ok(game_obj_lib)
     }

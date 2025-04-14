@@ -1,0 +1,8 @@
+[00:00:00.000] (7c40bb42b840) INFO   Initializing app
+[00:00:00.006] (7c40bb42b840) INFO   Initializing window: width=800 height=800 title=Tank
+[00:00:00.084] (7c40bb42b840) INFO   Window initialized successfully
+[00:00:00.084] (7c40bb42b840) INFO   Loading GameLib
+[00:00:00.226] (7c40bb42b840) INFO   Loading GameObjTemplateLib from res/game_object_templates.json
+[00:00:00.226] (7c40bb42b840) INFO   GameObjTemplateLib loaded successfully
+[00:00:00.226] (7c40bb42b840) INFO   GameLib loaded successfully
+[00:00:00.226] (7c40bb42b840) INFO   App initialized successfully

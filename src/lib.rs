@@ -1,12 +1,14 @@
-mod mygame;
-mod myjsonutils;
-mod myopengl;
-mod myrenderer;
-mod mytemplates;
+pub mod mygame;
+pub mod myjsonutils;
+pub mod myopengl;
+pub mod myrenderer;
+pub mod mytemplates;
+pub mod mytypes;
 mod mytests;
-mod mytypes;
+
 
 use cgmath::Vector2;
+use log::info;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
 use mygame::*;
 use mytemplates::*;
@@ -24,8 +26,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(settings_file: &str) -> Result<Self, MyError> {
-        let settings = Settings::new(settings_file)?;
+    pub fn new(settings: Settings) -> Result<Self, MyError> {
+        info!("Initializing app");
+
         let width = settings.get_u32("width")?;
         let height = settings.get_u32("height")?;
         let title = settings.get_str("title")?;
@@ -45,6 +48,8 @@ impl App {
         };
 
         let tile = Self::init_game_obj(&lib)?;
+
+        info!("App initialized successfully");
 
         Ok(Self {
             settings,
@@ -77,6 +82,8 @@ impl App {
         height: u32,
         title: &str,
     ) -> Result<(PWindow, GlfwReceiver<(f64, WindowEvent)>), MyError> {
+        info!("Initializing window: width={width} height={height} title={title}");
+
         glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
         glfw.window_hint(glfw::WindowHint::OpenGlProfile(
             glfw::OpenGlProfileHint::Core,
@@ -93,6 +100,8 @@ impl App {
 
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
+        info!("Window initialized successfully");
+        
         Ok((window, events))
     }
 
