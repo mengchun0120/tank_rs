@@ -1,0 +1,17 @@
+[
+    {
+        "template": "tile",
+        "pos": [200.0, 200.0],
+        "side": "Neutral"
+    },
+    {
+        "template": "tile",
+        "pos": [240.0, 200.0],
+        "side": "Neutral"
+    },
+    {
+        "template": "tile",
+        "pos": [280.0, 200.0],
+        "side": "Neutral"
+    }
+]

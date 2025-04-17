@@ -1,4 +1,4 @@
-use cgmath::{Vector3, Vector4};
+use cgmath::{Vector2, Vector3, Vector4};
 use json::JsonValue;
 use std::{fs, path::Path};
 
@@ -46,4 +46,18 @@ pub fn json_from_file<T: AsRef<Path>>(path: T) -> Result<JsonValue, MyError> {
     let json_str = fs::read_to_string(path)?;
     let obj = json::parse(&json_str).map_err(|e| format!("Failed to parse JSON: {}", e))?;
     Ok(obj)
+}
+
+pub fn vector2_from_json(obj: &JsonValue) -> Result<Vector2<f32>, MyError> {
+    let mut a = Vec::new();
+    for m in obj.members() {
+        let v = m.as_f32().ok_or("Invalid float")?;
+        a.push(v);
+    }
+
+    if a.len() < 2 {
+        return Err("Invalid JSON format".into());
+    }
+
+    Ok(Vector2 { x: a[0], y: a[1] })
 }

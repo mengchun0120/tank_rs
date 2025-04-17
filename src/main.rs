@@ -1,8 +1,8 @@
-use std::process;
 use log::{LevelFilter, error};
-use tank::mytypes::MyError;
+use std::process;
 use tank::App;
 use tank::mytemplates::Settings;
+use tank::mytypes::MyError;
 
 const SETTING_FILE: &str = "res/settings.json";
 
@@ -32,5 +32,5 @@ fn init() -> Result<Settings, MyError> {
 
     simple_logging::log_to_file(log_file, LevelFilter::Info)?;
 
-    Ok(settings)    
+    Ok(settings)
 }

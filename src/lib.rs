@@ -3,13 +3,12 @@ pub mod myjsonutils;
 pub mod myopengl;
 pub mod myrenderer;
 pub mod mytemplates;
-pub mod mytypes;
 mod mytests;
-
+pub mod mytypes;
 
 use cgmath::Vector2;
-use log::info;
 use glfw::{Action, Context, Glfw, GlfwReceiver, Key, PWindow, WindowEvent};
+use log::info;
 use mygame::*;
 use mytemplates::*;
 use mytypes::*;
@@ -101,7 +100,7 @@ impl App {
         gl::load_with(|symbol| window.get_proc_address(symbol) as *const _);
 
         info!("Window initialized successfully");
-        
+
         Ok((window, events))
     }
 

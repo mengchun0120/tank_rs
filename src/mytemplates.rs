@@ -4,8 +4,8 @@ use crate::myrenderer::*;
 use crate::mytypes::*;
 use cgmath::{Vector3, Vector4};
 use json::JsonValue;
-use std::{collections::HashMap, fs, rc::Rc};
 use log::info;
+use std::{collections::HashMap, fs, rc::Rc};
 
 pub struct Settings {
     settings: JsonValue,
