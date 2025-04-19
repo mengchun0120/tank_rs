@@ -1,8 +1,0 @@
-[00:00:00.000] (3ea0) INFO   Initializing app
-[00:00:00.033] (3ea0) INFO   Initializing window: width=800 height=800 title=Tank
-[00:00:00.150] (3ea0) INFO   Window initialized successfully
-[00:00:00.150] (3ea0) INFO   Loading GameLib
-[00:00:00.301] (3ea0) INFO   Loading GameObjTemplateLib from res/game_object_templates.json
-[00:00:00.302] (3ea0) INFO   GameObjTemplateLib loaded successfully
-[00:00:00.302] (3ea0) INFO   GameLib loaded successfully
-[00:00:00.302] (3ea0) INFO   App initialized successfully

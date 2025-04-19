@@ -30,5 +30,37 @@
         },
         "z": -0.5,
         "texture": "res/texture/tile.png"
+    },
+    {
+        "name": "player_tank",
+        "va": {
+            "indices": [
+                0, 1, 2, 0, 2, 3
+            ],
+            "blocks": [
+                {
+                    "name": "position",
+                    "vertex_size": 2,
+                    "data": [
+                        -30.0, -30.0,
+                        30.0, -30.0,
+                        30.0, 30.0,
+                        -30.0, 30.0
+                    ]
+                },
+                {
+                    "name": "texPos",
+                    "vertex_size": 2,
+                    "data": [
+                        0.0, 0.0,
+                        1.0, 0.0,
+                        1.0, 1.0,
+                        0.0, 1.0
+                    ]
+                }
+            ]
+        },
+        "z": -0.2,
+        "texture": "res/texture/player_tank.png"
     }
 ]

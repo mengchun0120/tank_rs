@@ -5,9 +5,8 @@ use crate::myrenderer::*;
 use crate::mytemplates::*;
 use crate::mytypes::*;
 use cgmath::Vector2;
-use image::imageops::FilterType::Gaussian;
 use json::JsonValue;
-use log::{info, warn};
+use log::warn;
 use std::rc::Rc;
 
 pub enum GameObjectState {

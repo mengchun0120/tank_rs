@@ -2,5 +2,10 @@
     {
         "name": "tile",
         "mesh": "tile"
+    },
+    {
+        "name": "player",
+        "mesh": "player_tank",
+        "side": "Player"
     }
 ]

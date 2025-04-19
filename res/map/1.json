@@ -10,5 +10,9 @@
     {
         "template": "tile",
         "pos": [280.0, 200.0]
+    },
+    {
+        "template": "player",
+        "pos": [400.0, 400.0]
     }
 ]
