@@ -5,6 +5,7 @@ use crate::myrenderer::*;
 use crate::mytemplates::*;
 use crate::mytypes::*;
 use cgmath::Vector2;
+use image::imageops::FilterType::Gaussian;
 use json::JsonValue;
 use log::{info, warn};
 use std::rc::Rc;
@@ -132,14 +133,14 @@ pub struct GameMap {
     map: Vec<Vec<Vec<GameObject>>>,
 }
 
-const GAME_MAP_ROWS: usize = 20;
-const GAME_MAP_COLS: usize = 30;
-const GAME_CELL_SIZE: usize = 40;
-const WINDOW_WIDTH: usize = GAME_CELL_SIZE * GAME_MAP_COLS;
-const WINDOW_HEIGHT: usize = GAME_CELL_SIZE * GAME_MAP_ROWS;
+pub const GAME_MAP_ROWS: usize = 20;
+pub const GAME_MAP_COLS: usize = 30;
+pub const GAME_CELL_SIZE: usize = 40;
+pub const WINDOW_WIDTH: usize = GAME_CELL_SIZE * GAME_MAP_COLS;
+pub const WINDOW_HEIGHT: usize = GAME_CELL_SIZE * GAME_MAP_ROWS;
 
 impl GameMap {
-    fn new() -> Self {
+    pub fn new() -> Self {
         let mut map = Vec::new();
 
         for _ in 0..GAME_MAP_ROWS {
@@ -154,14 +155,19 @@ impl GameMap {
         Self { map }
     }
 
-    fn from_file(file: &str) -> Result<Self, MyError> {
+    pub fn from_file(file: &str, lib: &GameLib) -> Result<Self, MyError> {
         let mut map = Self::new();
         let obj = json_from_file(file)?;
+
+        for m in obj.members() {
+            let game_obj = GameObject::from_json(m, lib)?;
+            map.add(game_obj);
+        }
 
         Ok(map)
     }
 
-    fn add(&mut self, obj: GameObject) -> bool {
+    pub fn add(&mut self, obj: GameObject) -> bool {
         let (row, col) = Self::get_cell_pos(&obj);
 
         if row < 0 || row >= GAME_MAP_ROWS as i32 {
@@ -179,8 +185,18 @@ impl GameMap {
         true
     }
 
+    pub fn draw(&self, renderer: &SimpleRenderer) {
+        for row in self.map.iter() {
+            for col in row.iter() {
+                for obj in col.iter() {
+                    obj.draw(renderer);
+                }
+            }
+        }
+    }
+
     #[inline]
-    fn get_cell_pos(obj: &GameObject) -> (i32, i32) {
+    pub fn get_cell_pos(obj: &GameObject) -> (i32, i32) {
         (
             (obj.pos.x / GAME_CELL_SIZE as f32).round() as i32,
             (obj.pos.y / GAME_CELL_SIZE as f32).round() as i32,

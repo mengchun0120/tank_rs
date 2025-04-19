@@ -15,7 +15,7 @@ use mytypes::*;
 
 pub struct App {
     settings: Settings,
-    tile: GameObject,
+    map: GameMap,
     lib: GameLib,
     viewport_origin: Vector2<f32>,
     viewport_size: Vector2<f32>,
@@ -28,31 +28,29 @@ impl App {
     pub fn new(settings: Settings) -> Result<Self, MyError> {
         info!("Initializing app");
 
-        let width = settings.get_u32("width")?;
-        let height = settings.get_u32("height")?;
         let title = settings.get_str("title")?;
-
         let mut glfw = Self::init_glfw()?;
-        let (window, events) = Self::init_window(&mut glfw, width, height, title)?;
+        let (window, events) =
+            Self::init_window(&mut glfw, WINDOW_WIDTH as u32, WINDOW_HEIGHT as u32, title)?;
 
         let lib = GameLib::load(&settings)?;
 
         let viewport_origin = Vector2 {
-            x: width as f32 / 2.0,
-            y: height as f32 / 2.0,
+            x: WINDOW_WIDTH as f32 / 2.0,
+            y: WINDOW_HEIGHT as f32 / 2.0,
         };
         let viewport_size = Vector2 {
-            x: width as f32,
-            y: height as f32,
+            x: WINDOW_WIDTH as f32,
+            y: WINDOW_HEIGHT as f32,
         };
 
-        let tile = Self::init_game_obj(&lib)?;
+        let map = GameMap::from_file("res/map/1.json", &lib)?;
 
         info!("App initialized successfully");
 
         Ok(Self {
             settings,
-            tile,
+            map,
             lib,
             viewport_origin,
             viewport_size,
@@ -118,16 +116,6 @@ impl App {
         renderer.set_viewport_size(&self.viewport_size);
     }
 
-    fn init_game_obj(lib: &GameLib) -> Result<GameObject, MyError> {
-        let template = lib.find_game_obj_template("tile")?;
-        let obj = GameObject::new(
-            template.clone(),
-            Vector2 { x: 200.0, y: 200.0 },
-            Vector2 { x: 1.0, y: 0.0 },
-        );
-        Ok(obj)
-    }
-
     fn process_events(&mut self) {
         for (_, event) in glfw::flush_messages(&self.events) {
             match event {
@@ -146,7 +134,7 @@ impl App {
         self.clear_window();
         let renderer = self.lib.simple_renderer();
         renderer.apply();
-        self.tile.draw(renderer);
+        self.map.draw(renderer);
     }
 
     fn post_update(&mut self) {
