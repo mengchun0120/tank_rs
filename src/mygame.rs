@@ -7,7 +7,7 @@ use crate::mytypes::*;
 use cgmath::Vector2;
 use json::JsonValue;
 use log::{info, warn};
-use std::fmt::Display;
+use std::mem;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
@@ -55,7 +55,6 @@ impl Direction {
     pub fn to_vec(&self) -> &Vector2<f32> {
         &DIRECTIONS[self.clone() as usize]
     }
-
 }
 
 impl Default for Direction {
@@ -78,6 +77,13 @@ impl TryFrom<&str> for Direction {
     }
 }
 
+#[derive(Debug, PartialEq)]
+enum ObjAction {
+    Move,
+    Attack,
+    Idle,
+}
+
 pub struct GameObject {
     template: Rc<GameObjectTemplate>,
     state: GameObjectState,
@@ -85,7 +91,8 @@ pub struct GameObject {
     direction: Direction,
     side: Side,
     hp: Option<u32>,
-    moving: bool,
+    action: ObjAction,
+    updated: bool,
 }
 
 impl GameObject {
@@ -103,7 +110,8 @@ impl GameObject {
             direction,
             side,
             hp,
-            moving: false,
+            action: ObjAction::Idle,
+            updated: false,
         }
     }
 
@@ -197,6 +205,7 @@ impl GameObject {
 pub struct GameMap {
     map: Vec<Vec<GameObject>>,
     player_idx: Option<usize>,
+    max_collide_span: f32,
 }
 
 pub const GAME_MAP_ROWS: usize = 20;
@@ -205,6 +214,8 @@ pub const GAME_CELL_SIZE: usize = 40;
 pub const GAME_CELL_COUNT: usize = GAME_MAP_COLS * GAME_MAP_ROWS;
 pub const WINDOW_WIDTH: usize = GAME_CELL_SIZE * GAME_MAP_COLS;
 pub const WINDOW_HEIGHT: usize = GAME_CELL_SIZE * GAME_MAP_ROWS;
+pub const MAX_OBJ_X: f32 = WINDOW_WIDTH as f32 - 0.1;
+pub const MAX_OBJ_Y: f32 = WINDOW_HEIGHT as f32 - 0.1;
 
 impl GameMap {
     pub fn new() -> Self {
@@ -218,6 +229,7 @@ impl GameMap {
         Self {
             map,
             player_idx: None,
+            max_collide_span: 0.0,
         }
     }
 
@@ -237,19 +249,12 @@ impl GameMap {
     }
 
     pub fn add(&mut self, obj: GameObject) -> bool {
-        let (col, row) = Self::get_cell_pos(&obj);
-
-        if row < 0 || row >= GAME_MAP_ROWS as i32 {
-            warn!("Invalid row {}", row);
-            return false;
-        }
-
-        if col < 0 || col >= GAME_MAP_COLS as i32 {
-            warn!("Invalid col {}", col);
-            return false;
-        }
-
-        let idx = Self::get_cell_idx(row, col);
+        let idx = match Self::get_cell_idx(&obj.pos) {
+            Some(i) => i,
+            None => {
+                return false;
+            }
+        };
 
         if obj.side == Side::Player {
             if self.player_idx.is_some() {
@@ -257,11 +262,12 @@ impl GameMap {
                 return false;
             }
 
-            info!("Player at idx {idx}");
             self.player_idx = Some(idx);
         }
 
-        info!("add obj idx={idx} row={row} col={col} side={:?}", obj.side);
+        if self.max_collide_span < obj.template.collide_span {
+            self.max_collide_span = obj.template.collide_span;
+        }
 
         self.map[idx].push(obj);
 
@@ -274,21 +280,6 @@ impl GameMap {
                 obj.draw(renderer);
             }
         }
-    }
-
-    pub fn get_cell(&self, row: i32, col: i32) -> Option<&[GameObject]> {
-        if row < 0 || row >= GAME_MAP_ROWS as i32 {
-            warn!("Invalid row {row}");
-            return None;
-        }
-
-        if col < 0 || col >= GAME_MAP_COLS as i32 {
-            warn!("Invalid col {col}");
-            return None;
-        }
-
-        let idx = Self::get_cell_idx(row, col);
-        Some(&self.map[idx])
     }
 
     pub fn get_player(&self) -> Option<&GameObject> {
@@ -305,22 +296,80 @@ impl GameMap {
         }
     }
 
-    pub fn set_player_direction(&mut self, d: Direction) {
+    pub fn move_player(&mut self, d: Direction, action: glfw::Action) {
         if let Some(player) = self.get_player_mut() {
+            player.action = ObjAction::Move;
             player.set_direction(d);
         }
     }
 
-    #[inline]
-    pub fn get_cell_pos(obj: &GameObject) -> (i32, i32) {
-        (
-            (obj.pos.x / GAME_CELL_SIZE as f32).floor() as i32,
-            (obj.pos.y / GAME_CELL_SIZE as f32).floor() as i32,
-        )
+    pub fn update(&mut self, time_delta: f32) {
+        self.map
+            .iter_mut()
+            .flatten()
+            .for_each(|obj| obj.updated = false);
+
+        for cell_idx in 0..GAME_CELL_COUNT {
+            for i in (0..self.map[cell_idx].len()).rev() {
+                let mut obj = self.map[cell_idx].pop().unwrap();
+                let new_cell_idx = self.update_obj(&mut obj, cell_idx, time_delta);
+                self.map[new_cell_idx].push(obj);
+
+                if i >= 1 {
+                    let last_idx = self.map[cell_idx].len() - 1;
+                    self.map[cell_idx].swap(i - 1, last_idx);
+                }
+            }
+        }
+    }
+
+    pub fn update_obj(&mut self, obj: &mut GameObject, cell_idx: usize, time_delta: f32) -> usize {
+        if obj.updated {
+            return cell_idx;
+        }
+
+        match obj.action {
+            ObjAction::Move => {
+                let cell_idx = self.move_obj(obj, time_delta);
+                obj.action = ObjAction::Idle;
+                return cell_idx;
+            }
+            ObjAction::Attack => {}
+            ObjAction::Idle => {}
+        }
+
+        cell_idx
+    }
+
+    pub fn move_obj(&mut self, obj: &mut GameObject, time_delta: f32) -> usize {
+        let disp = obj.direction.to_vec() * obj.template.speed;
+        obj.pos += disp;
+        obj.pos.x = obj.pos.x.clamp(0.0, MAX_OBJ_X);
+        obj.pos.y = obj.pos.y.clamp(0.0, MAX_OBJ_Y);
+
+        let new_cell_idx = Self::get_cell_idx(&obj.pos).unwrap();
+
+        if obj.side == Side::Player {
+            self.player_idx = Some(new_cell_idx);
+        }
+
+        new_cell_idx
     }
 
     #[inline]
-    pub fn get_cell_idx(row: i32, col: i32) -> usize {
-        row as usize * GAME_MAP_COLS + col as usize
+    pub fn get_cell_idx(pos: &Vector2<f32>) -> Option<usize> {
+        let col = (pos.x / GAME_CELL_SIZE as f32).floor() as i32;
+        if col < 0 || col >= GAME_MAP_COLS as i32 {
+            warn!("Invalid pos {:?}", pos);
+            return None;
+        }
+
+        let row = (pos.y / GAME_CELL_SIZE as f32).floor() as i32;
+        if row < 0 || row >= GAME_MAP_ROWS as i32 {
+            warn!("Invalid pos {:?}", pos);
+            return None;
+        }
+
+        Some(row as usize * GAME_MAP_COLS + col as usize)
     }
 }

@@ -12,9 +12,9 @@ use log::info;
 use mygame::*;
 use mytemplates::*;
 use mytypes::*;
+use std::time::Instant;
 
 pub struct App {
-    settings: Settings,
     map: GameMap,
     lib: GameLib,
     viewport_origin: Vector2<f32>,
@@ -22,6 +22,7 @@ pub struct App {
     glfw: Glfw,
     window: PWindow,
     events: GlfwReceiver<(f64, WindowEvent)>,
+    last_update: Instant,
 }
 
 impl App {
@@ -49,7 +50,6 @@ impl App {
         info!("App initialized successfully");
 
         Ok(Self {
-            settings,
             map,
             lib,
             viewport_origin,
@@ -57,12 +57,16 @@ impl App {
             glfw,
             window,
             events,
+            last_update: Instant::now(),
         })
     }
 
     pub fn run(&mut self) {
         self.init_opengl();
         while !self.window.should_close() {
+            let time_delta = self.last_update.elapsed().as_micros() as f32;
+            self.last_update = Instant::now();
+            self.update(time_delta);
             self.process_events();
             self.render();
             self.post_update();
@@ -116,7 +120,7 @@ impl App {
             );
         }
 
-        let renderer = self.lib.simple_renderer();
+        let renderer = &self.lib.simple_renderer;
         renderer.apply();
         renderer.set_viewport_origin(&self.viewport_origin);
         renderer.set_viewport_size(&self.viewport_size);
@@ -129,26 +133,29 @@ impl App {
                     self.window.set_should_close(true);
                 }
                 glfw::WindowEvent::Key(Key::Up, _, action, _) => {
-                    info!("Up action={:?}", action);
-                    self.map.set_player_direction(Direction::Up);
+                    self.map.move_player(Direction::Up, action);
                 }
-                glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
-                    self.map.set_player_direction(Direction::Down);
+                glfw::WindowEvent::Key(Key::Down, _, action, _) => {
+                    self.map.move_player(Direction::Down, action);
                 }
-                glfw::WindowEvent::Key(Key::Left, _, Action::Press, _) => {
-                    self.map.set_player_direction(Direction::Left);
+                glfw::WindowEvent::Key(Key::Left, _, action, _) => {
+                    self.map.move_player(Direction::Left, action);
                 }
-                glfw::WindowEvent::Key(Key::Right, _, Action::Press, _) => {
-                    self.map.set_player_direction(Direction::Right);
+                glfw::WindowEvent::Key(Key::Right, _, action, _) => {
+                    self.map.move_player(Direction::Right, action);
                 }
                 _ => {}
             }
         }
     }
 
+    fn update(&mut self, time_delta: f32) {
+        self.map.update(time_delta);
+    }
+
     fn render(&mut self) {
         self.clear_window();
-        let renderer = self.lib.simple_renderer();
+        let renderer = &self.lib.simple_renderer;
         renderer.apply();
         self.map.draw(renderer);
     }

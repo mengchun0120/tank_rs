@@ -5,7 +5,7 @@ use crate::mytypes::*;
 use cgmath::{Vector2, Vector3, Vector4};
 use json::JsonValue;
 use log::info;
-use std::{collections::HashMap, fs, rc::Rc};
+use std::{cmp, collections::HashMap, fs, rc::Rc};
 
 pub struct Settings {
     settings: JsonValue,
@@ -104,12 +104,12 @@ impl MeshTemplate {
     }
 }
 
+type MeshTemplateLib = HashMap<String, Rc<MeshTemplate>>;
 type GameObjTemplateLib = HashMap<String, Rc<GameObjectTemplate>>;
 
 pub struct GameLib {
-    simple_renderer: SimpleRenderer,
-    comp_template_lib: ComponentTemplateLib,
-    game_obj_template_lib: GameObjTemplateLib,
+    pub simple_renderer: SimpleRenderer,
+    pub game_obj_template_lib: GameObjTemplateLib,
 }
 
 impl GameLib {
@@ -121,26 +121,15 @@ impl GameLib {
             settings.get_str("simple_frag_shader")?,
         )?;
 
-        let comp_template_lib = ComponentTemplateLib::load(settings, &simple_renderer)?;
-        let game_obj_template_lib = Self::load_game_obj_template_lib(settings, &comp_template_lib)?;
+        let mesh_template_lib = Self::load_mesh_templates(settings, &simple_renderer.program())?;
+        let game_obj_template_lib = Self::load_game_obj_template_lib(settings, &mesh_template_lib)?;
 
         info!("GameLib loaded successfully");
 
         Ok(Self {
             simple_renderer,
-            comp_template_lib,
             game_obj_template_lib,
         })
-    }
-
-    #[inline]
-    pub fn simple_renderer(&self) -> &SimpleRenderer {
-        &self.simple_renderer
-    }
-
-    #[inline]
-    pub fn comp_template_lib(&self) -> &ComponentTemplateLib {
-        &self.comp_template_lib
     }
 
     pub fn find_game_obj_template(&self, name: &str) -> Result<&Rc<GameObjectTemplate>, MyError> {
@@ -149,9 +138,31 @@ impl GameLib {
             .ok_or(format!("Cannot find GameObjectTemplate {}", name).into())
     }
 
+    fn load_mesh_templates(
+        settings: &Settings,
+        program: &ShaderProgram,
+    ) -> Result<MeshTemplateLib, MyError> {
+        info!("Loading mesh tempaltes");
+
+        let file = settings.get_str("mesh_templates")?;
+        let contents = fs::read_to_string(file).map_err(|_| "Failed to read mesh template file")?;
+        let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
+
+        let mut templates = HashMap::new();
+
+        for t in json_value.members() {
+            let template = MeshTemplate::from_json(t, program)?;
+            templates.insert(template.name.clone(), Rc::new(template));
+        }
+
+        info!("Loaded mesh templates successfully");
+
+        Ok(templates)
+    }
+
     fn load_game_obj_template_lib(
         settings: &Settings,
-        lib: &ComponentTemplateLib,
+        lib: &MeshTemplateLib,
     ) -> Result<GameObjTemplateLib, MyError> {
         let file = settings.get_str("game_object_templates")?;
 
@@ -171,52 +182,17 @@ impl GameLib {
     }
 }
 
-pub struct ComponentTemplateLib {
-    mesh_templates: HashMap<String, Rc<MeshTemplate>>,
-}
-
-impl ComponentTemplateLib {
-    pub fn load(settings: &Settings, renderer: &SimpleRenderer) -> Result<Self, MyError> {
-        let mesh_templates = Self::load_mesh_templates(settings, renderer.program())?;
-
-        Ok(Self { mesh_templates })
-    }
-
-    pub fn find_mesh_template(&self, name: &str) -> Result<&Rc<MeshTemplate>, MyError> {
-        self.mesh_templates
-            .get(name)
-            .ok_or(format!("Failed to find MeshTemplate {}", name).into())
-    }
-
-    fn load_mesh_templates(
-        settings: &Settings,
-        program: &ShaderProgram,
-    ) -> Result<HashMap<String, Rc<MeshTemplate>>, MyError> {
-        let file = settings.get_str("mesh_templates")?;
-        let contents = fs::read_to_string(file).map_err(|_| "Failed to read mesh template file")?;
-        let json_value = json::parse(&contents).map_err(|_| "Failed to parse JSON")?;
-
-        let mut templates = HashMap::new();
-
-        for t in json_value.members() {
-            let template = MeshTemplate::from_json(t, program)?;
-            templates.insert(template.name.clone(), Rc::new(template));
-        }
-
-        Ok(templates)
-    }
-}
-
 pub struct GameObjectTemplate {
     pub name: String,
     pub mesh_template: Rc<MeshTemplate>,
     pub hp: Option<u32>,
-    pub speed: Option<f32>,
+    pub speed: f32,
     pub fire_point: Option<Vector2<f32>>,
+    pub collide_span: f32,
 }
 
 impl GameObjectTemplate {
-    pub fn from_json(obj: &JsonValue, lib: &ComponentTemplateLib) -> Result<Self, MyError> {
+    pub fn from_json(obj: &JsonValue, lib: &MeshTemplateLib) -> Result<Self, MyError> {
         if !obj.has_key("name") {
             return Err("name is missing".into());
         }
@@ -227,7 +203,9 @@ impl GameObjectTemplate {
 
         let name = obj["name"].as_str().ok_or("Invalid name")?.to_string();
         let mesh_str = obj["mesh"].as_str().ok_or("Invalid mesh")?;
-        let mesh_template = lib.find_mesh_template(mesh_str)?;
+        let mesh_template = lib
+            .get(mesh_str)
+            .ok_or(format!("Cannot find MeshTemplate {}", mesh_str))?;
         let hp = if obj.has_key("hp") {
             Some(obj["hp"].as_u32().ok_or("Invalid hp")?)
         } else {
@@ -235,9 +213,9 @@ impl GameObjectTemplate {
         };
 
         let speed = if obj.has_key("speed") {
-            Some(obj["speed"].as_f32().ok_or("Invalid speed")?)
+            obj["speed"].as_f32().ok_or("Invalid speed")?
         } else {
-            None
+            0.0
         };
 
         let fire_point = if obj.has_key("fire_point") {
@@ -246,12 +224,19 @@ impl GameObjectTemplate {
             None
         };
 
+        let collide_span = if obj.has_key("collide_span") {
+            obj["collide_span"].as_f32().ok_or("Invalid collide_span")?
+        } else {
+            0.0
+        };
+
         Ok(Self {
             name,
             mesh_template: mesh_template.clone(),
             hp,
             speed,
             fire_point,
+            collide_span,
         })
     }
 }
