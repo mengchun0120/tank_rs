@@ -6,6 +6,8 @@
     {
         "name": "player",
         "mesh": "player_tank",
-        "side": "Player"
+        "hp": 200,
+        "speed": 30.0,
+        "fire_point": [30.0, 0.0]
     }
 ]

@@ -6,21 +6,24 @@ use crate::mytemplates::*;
 use crate::mytypes::*;
 use cgmath::Vector2;
 use json::JsonValue;
-use log::warn;
+use log::{info, warn};
+use std::fmt::Display;
 use std::rc::Rc;
 
+#[derive(Debug, PartialEq)]
 pub enum GameObjectState {
     Active,
     Dead,
 }
 
-pub enum GameObjectSide {
+#[derive(Debug, PartialEq)]
+pub enum Side {
     AI,
     Player,
     Neutral,
 }
 
-impl TryFrom<&str> for GameObjectSide {
+impl TryFrom<&str> for Side {
     type Error = MyError;
 
     fn try_from(value: &str) -> Result<Self, Self::Error> {
@@ -33,20 +36,65 @@ impl TryFrom<&str> for GameObjectSide {
     }
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub enum Direction {
+    Up = 0,
+    Down = 1,
+    Left = 2,
+    Right = 3,
+}
+
+const DIRECTIONS: &[Vector2<f32>] = &[
+    Vector2 { x: 0.0, y: 1.0 },
+    Vector2 { x: 0.0, y: -1.0 },
+    Vector2 { x: -1.0, y: 0.0 },
+    Vector2 { x: 1.0, y: 0.0 },
+];
+
+impl Direction {
+    pub fn to_vec(&self) -> &Vector2<f32> {
+        &DIRECTIONS[self.clone() as usize]
+    }
+
+}
+
+impl Default for Direction {
+    fn default() -> Self {
+        Self::Left
+    }
+}
+
+impl TryFrom<&str> for Direction {
+    type Error = MyError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        match value {
+            "Up" => Ok(Self::Up),
+            "Down" => Ok(Self::Down),
+            "Left" => Ok(Self::Left),
+            "Right" => Ok(Self::Right),
+            _ => Err(format!("Invalid direction: {}", value).into()),
+        }
+    }
+}
+
 pub struct GameObject {
     template: Rc<GameObjectTemplate>,
     state: GameObjectState,
     pos: Vector2<f32>,
-    direction: Vector2<f32>,
-    side: GameObjectSide,
+    direction: Direction,
+    side: Side,
+    hp: Option<u32>,
+    moving: bool,
 }
 
 impl GameObject {
     pub fn new(
         template: Rc<GameObjectTemplate>,
         pos: Vector2<f32>,
-        direction: Vector2<f32>,
-        side: GameObjectSide,
+        direction: Direction,
+        side: Side,
+        hp: Option<u32>,
     ) -> Self {
         Self {
             state: GameObjectState::Active,
@@ -54,6 +102,8 @@ impl GameObject {
             pos,
             direction,
             side,
+            hp,
+            moving: false,
         }
     }
 
@@ -70,27 +120,38 @@ impl GameObject {
         let template = lib.find_game_obj_template(template_str)?;
         let pos = vector2_from_json(&obj["pos"])?;
         let direction = if obj.has_key("direction") {
-            vector2_from_json(&obj["direction"])?
+            obj["direction"]
+                .as_str()
+                .ok_or("Invalid direction")?
+                .try_into()?
         } else {
-            Vector2 { x: 1.0, y: 0.0 }
+            Direction::default()
         };
         let side = if obj.has_key("side") {
-            obj["side"].as_str().ok_or("Invalid side")?.try_into()?
+            let side_str = obj["side"].as_str().ok_or("Invalid side")?;
+            info!("side_str={}", side_str);
+            side_str.try_into()?
         } else {
-            GameObjectSide::Neutral
+            Side::Neutral
         };
 
-        Ok(Self::new(template.clone(), pos, direction, side))
+        Ok(Self::new(
+            template.clone(),
+            pos,
+            direction,
+            side,
+            template.hp,
+        ))
     }
 
     pub fn draw(&self, renderer: &SimpleRenderer) {
         let game_obj_template = self.template.as_ref();
-        let mesh_template = game_obj_template.mesh_template().as_ref();
+        let mesh_template = game_obj_template.mesh_template.as_ref();
 
         renderer.set_use_obj_ref(true);
         renderer.set_obj_ref(&self.pos);
         renderer.set_use_direction(true);
-        renderer.set_direction(&self.direction);
+        renderer.set_direction(self.direction.to_vec());
         renderer.set_z(mesh_template.z);
         if let Some(c) = &mesh_template.color {
             renderer.set_use_color(true);
@@ -123,18 +184,25 @@ impl GameObject {
     }
 
     #[inline]
-    pub fn direction(&self) -> &Vector2<f32> {
-        &self.direction
+    pub fn direction(&self) -> Direction {
+        self.direction.clone()
+    }
+
+    #[inline]
+    pub fn set_direction(&mut self, d: Direction) {
+        self.direction = d;
     }
 }
 
 pub struct GameMap {
-    map: Vec<Vec<Vec<GameObject>>>,
+    map: Vec<Vec<GameObject>>,
+    player_idx: Option<usize>,
 }
 
 pub const GAME_MAP_ROWS: usize = 20;
 pub const GAME_MAP_COLS: usize = 30;
 pub const GAME_CELL_SIZE: usize = 40;
+pub const GAME_CELL_COUNT: usize = GAME_MAP_COLS * GAME_MAP_ROWS;
 pub const WINDOW_WIDTH: usize = GAME_CELL_SIZE * GAME_MAP_COLS;
 pub const WINDOW_HEIGHT: usize = GAME_CELL_SIZE * GAME_MAP_ROWS;
 
@@ -142,19 +210,20 @@ impl GameMap {
     pub fn new() -> Self {
         let mut map = Vec::new();
 
-        for _ in 0..GAME_MAP_ROWS {
-            let mut r = Vec::new();
-            for _ in 0..GAME_MAP_COLS {
-                let cell: Vec<GameObject> = Vec::new();
-                r.push(cell);
-            }
-            map.push(r);
+        for _ in 0..GAME_CELL_COUNT {
+            let cell = Vec::new();
+            map.push(cell);
         }
 
-        Self { map }
+        Self {
+            map,
+            player_idx: None,
+        }
     }
 
     pub fn from_file(file: &str, lib: &GameLib) -> Result<Self, MyError> {
+        info!("Initializing GameMap from {file}");
+
         let mut map = Self::new();
         let obj = json_from_file(file)?;
 
@@ -163,11 +232,12 @@ impl GameMap {
             map.add(game_obj);
         }
 
+        info!("Initialized GameMap successfully");
         Ok(map)
     }
 
     pub fn add(&mut self, obj: GameObject) -> bool {
-        let (row, col) = Self::get_cell_pos(&obj);
+        let (col, row) = Self::get_cell_pos(&obj);
 
         if row < 0 || row >= GAME_MAP_ROWS as i32 {
             warn!("Invalid row {}", row);
@@ -179,26 +249,78 @@ impl GameMap {
             return false;
         }
 
-        self.map[row as usize][col as usize].push(obj);
+        let idx = Self::get_cell_idx(row, col);
+
+        if obj.side == Side::Player {
+            if self.player_idx.is_some() {
+                warn!("More than one player");
+                return false;
+            }
+
+            info!("Player at idx {idx}");
+            self.player_idx = Some(idx);
+        }
+
+        info!("add obj idx={idx} row={row} col={col} side={:?}", obj.side);
+
+        self.map[idx].push(obj);
 
         true
     }
 
     pub fn draw(&self, renderer: &SimpleRenderer) {
-        for row in self.map.iter() {
-            for col in row.iter() {
-                for obj in col.iter() {
-                    obj.draw(renderer);
-                }
+        for cell in self.map.iter() {
+            for obj in cell.iter() {
+                obj.draw(renderer);
             }
+        }
+    }
+
+    pub fn get_cell(&self, row: i32, col: i32) -> Option<&[GameObject]> {
+        if row < 0 || row >= GAME_MAP_ROWS as i32 {
+            warn!("Invalid row {row}");
+            return None;
+        }
+
+        if col < 0 || col >= GAME_MAP_COLS as i32 {
+            warn!("Invalid col {col}");
+            return None;
+        }
+
+        let idx = Self::get_cell_idx(row, col);
+        Some(&self.map[idx])
+    }
+
+    pub fn get_player(&self) -> Option<&GameObject> {
+        match self.player_idx {
+            Some(idx) => self.map[idx].iter().find(|o| o.side == Side::Player),
+            None => None,
+        }
+    }
+
+    pub fn get_player_mut(&mut self) -> Option<&mut GameObject> {
+        match self.player_idx {
+            Some(idx) => self.map[idx].iter_mut().find(|o| o.side == Side::Player),
+            None => None,
+        }
+    }
+
+    pub fn set_player_direction(&mut self, d: Direction) {
+        if let Some(player) = self.get_player_mut() {
+            player.set_direction(d);
         }
     }
 
     #[inline]
     pub fn get_cell_pos(obj: &GameObject) -> (i32, i32) {
         (
-            (obj.pos.x / GAME_CELL_SIZE as f32).round() as i32,
-            (obj.pos.y / GAME_CELL_SIZE as f32).round() as i32,
+            (obj.pos.x / GAME_CELL_SIZE as f32).floor() as i32,
+            (obj.pos.y / GAME_CELL_SIZE as f32).floor() as i32,
         )
+    }
+
+    #[inline]
+    pub fn get_cell_idx(row: i32, col: i32) -> usize {
+        row as usize * GAME_MAP_COLS + col as usize
     }
 }

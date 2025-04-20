@@ -108,6 +108,12 @@ impl App {
             gl::Enable(gl::BLEND);
             gl::BlendFunc(gl::SRC_ALPHA, gl::ONE_MINUS_SRC_ALPHA);
             gl::Enable(gl::DEPTH_TEST);
+            gl::Viewport(
+                0,
+                0,
+                self.viewport_size.x as i32,
+                self.viewport_size.y as i32,
+            );
         }
 
         let renderer = self.lib.simple_renderer();
@@ -119,11 +125,21 @@ impl App {
     fn process_events(&mut self) {
         for (_, event) in glfw::flush_messages(&self.events) {
             match event {
-                glfw::WindowEvent::FramebufferSize(width, height) => unsafe {
-                    gl::Viewport(0, 0, width, height)
-                },
                 glfw::WindowEvent::Key(Key::Escape, _, Action::Press, _) => {
-                    self.window.set_should_close(true)
+                    self.window.set_should_close(true);
+                }
+                glfw::WindowEvent::Key(Key::Up, _, action, _) => {
+                    info!("Up action={:?}", action);
+                    self.map.set_player_direction(Direction::Up);
+                }
+                glfw::WindowEvent::Key(Key::Down, _, Action::Press, _) => {
+                    self.map.set_player_direction(Direction::Down);
+                }
+                glfw::WindowEvent::Key(Key::Left, _, Action::Press, _) => {
+                    self.map.set_player_direction(Direction::Left);
+                }
+                glfw::WindowEvent::Key(Key::Right, _, Action::Press, _) => {
+                    self.map.set_player_direction(Direction::Right);
                 }
                 _ => {}
             }

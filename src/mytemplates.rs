@@ -2,7 +2,7 @@ use crate::myjsonutils::*;
 use crate::myopengl::*;
 use crate::myrenderer::*;
 use crate::mytypes::*;
-use cgmath::{Vector3, Vector4};
+use cgmath::{Vector2, Vector3, Vector4};
 use json::JsonValue;
 use log::info;
 use std::{collections::HashMap, fs, rc::Rc};
@@ -208,8 +208,11 @@ impl ComponentTemplateLib {
 }
 
 pub struct GameObjectTemplate {
-    name: String,
-    mesh_template: Rc<MeshTemplate>,
+    pub name: String,
+    pub mesh_template: Rc<MeshTemplate>,
+    pub hp: Option<u32>,
+    pub speed: Option<f32>,
+    pub fire_point: Option<Vector2<f32>>,
 }
 
 impl GameObjectTemplate {
@@ -225,15 +228,30 @@ impl GameObjectTemplate {
         let name = obj["name"].as_str().ok_or("Invalid name")?.to_string();
         let mesh_str = obj["mesh"].as_str().ok_or("Invalid mesh")?;
         let mesh_template = lib.find_mesh_template(mesh_str)?;
+        let hp = if obj.has_key("hp") {
+            Some(obj["hp"].as_u32().ok_or("Invalid hp")?)
+        } else {
+            None
+        };
+
+        let speed = if obj.has_key("speed") {
+            Some(obj["speed"].as_f32().ok_or("Invalid speed")?)
+        } else {
+            None
+        };
+
+        let fire_point = if obj.has_key("fire_point") {
+            Some(vector2_from_json(&obj["fire_point"])?)
+        } else {
+            None
+        };
 
         Ok(Self {
             name,
             mesh_template: mesh_template.clone(),
+            hp,
+            speed,
+            fire_point,
         })
-    }
-
-    #[inline]
-    pub fn mesh_template(&self) -> &Rc<MeshTemplate> {
-        &self.mesh_template
     }
 }
