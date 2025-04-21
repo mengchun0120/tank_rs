@@ -91,7 +91,6 @@ pub struct GameObject {
     side: Side,
     hp: Option<u32>,
     action: Option<ObjAction>,
-    move_dist: f32,
     updated: bool,
 }
 
@@ -111,7 +110,6 @@ impl GameObject {
             side,
             hp,
             action: None,
-            move_dist: 0.0,
             updated: false,
         }
     }
@@ -331,7 +329,7 @@ impl GameMap {
 
         match obj.action {
             Some(ObjAction::Move) => {
-                return self.move_obj(obj, cell_idx, time_delta);
+                return self.move_obj(obj, time_delta);
             }
             Some(ObjAction::Attack) => {}
             _ => {}
@@ -340,14 +338,8 @@ impl GameMap {
         cell_idx
     }
 
-    pub fn move_obj(&mut self, obj: &mut GameObject, cell_idx: usize, time_delta: f32) -> usize {
-        obj.move_dist += obj.template.speed * time_delta;
-
-        if obj.move_dist < obj.template.max_move_dist {
-            return cell_idx;
-        }
-
-        let dist = (obj.move_dist / obj.template.max_move_dist).floor() * obj.template.max_move_dist;
+    pub fn move_obj(&mut self, obj: &mut GameObject, time_delta: f32) -> usize {
+        let dist = (obj.template.speed * time_delta).floor();
         obj.pos += obj.direction.to_vec() * dist;
         obj.pos.x = obj.pos.x.clamp(
             obj.template.collide_span,
@@ -358,7 +350,6 @@ impl GameMap {
             WINDOW_HEIGHT as f32 - obj.template.collide_span,
         );
 
-        obj.move_dist = 0.0;
         obj.updated = true;
         obj.action = None;
 
