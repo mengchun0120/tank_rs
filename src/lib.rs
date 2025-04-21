@@ -14,6 +14,8 @@ use mytemplates::*;
 use mytypes::*;
 use std::time::Instant;
 
+const SMOOTH_FACTOR: f32 = 0.9;
+
 pub struct App {
     map: GameMap,
     lib: GameLib,
@@ -23,6 +25,7 @@ pub struct App {
     window: PWindow,
     events: GlfwReceiver<(f64, WindowEvent)>,
     last_update: Instant,
+    time_delta: f32,
 }
 
 impl App {
@@ -58,15 +61,17 @@ impl App {
             window,
             events,
             last_update: Instant::now(),
+            time_delta: 0.0,
         })
     }
 
     pub fn run(&mut self) {
         self.init_opengl();
         while !self.window.should_close() {
-            let time_delta = self.last_update.elapsed().as_micros() as f32;
+            let frame_time = self.last_update.elapsed().as_secs_f32() * 1000.0;
+            self.time_delta = frame_time * (1.0 - SMOOTH_FACTOR) + self.time_delta * SMOOTH_FACTOR;
             self.last_update = Instant::now();
-            self.update(time_delta);
+            self.update(self.time_delta);
             self.process_events();
             self.render();
             self.post_update();

@@ -28,7 +28,7 @@
                 }
             ]
         },
-        "z": -0.5,
+        "z": 0.5,
         "texture": "res/texture/tile.png"
     },
     {
@@ -60,7 +60,7 @@
                 }
             ]
         },
-        "z": -0.2,
+        "z": 0.3,
         "texture": "res/texture/player_tank.png"
     }
 ]

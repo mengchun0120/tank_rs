@@ -92,6 +92,7 @@ pub struct GameObject {
     side: Side,
     hp: Option<u32>,
     action: ObjAction,
+    last_act_dur: f32,
     updated: bool,
 }
 
@@ -111,6 +112,7 @@ impl GameObject {
             side,
             hp,
             action: ObjAction::Idle,
+            last_act_dur: 0.0,
             updated: false,
         }
     }
@@ -137,7 +139,6 @@ impl GameObject {
         };
         let side = if obj.has_key("side") {
             let side_str = obj["side"].as_str().ok_or("Invalid side")?;
-            info!("side_str={}", side_str);
             side_str.try_into()?
         } else {
             Side::Neutral
@@ -216,6 +217,7 @@ pub const WINDOW_WIDTH: usize = GAME_CELL_SIZE * GAME_MAP_COLS;
 pub const WINDOW_HEIGHT: usize = GAME_CELL_SIZE * GAME_MAP_ROWS;
 pub const MAX_OBJ_X: f32 = WINDOW_WIDTH as f32 - 0.1;
 pub const MAX_OBJ_Y: f32 = WINDOW_HEIGHT as f32 - 0.1;
+pub const MOVE_ACT_DUR: f32 = 1000.0 / 60.0;
 
 impl GameMap {
     pub fn new() -> Self {
@@ -330,7 +332,7 @@ impl GameMap {
 
         match obj.action {
             ObjAction::Move => {
-                let cell_idx = self.move_obj(obj, time_delta);
+                let cell_idx = self.move_obj(obj, cell_idx, time_delta);
                 obj.action = ObjAction::Idle;
                 return cell_idx;
             }
@@ -341,18 +343,28 @@ impl GameMap {
         cell_idx
     }
 
-    pub fn move_obj(&mut self, obj: &mut GameObject, time_delta: f32) -> usize {
-        let disp = obj.direction.to_vec() * obj.template.speed;
-        obj.pos += disp;
+    pub fn move_obj(&mut self, obj: &mut GameObject, cell_idx: usize, time_delta: f32) -> usize {
+        obj.last_act_dur += time_delta;
+        if obj.last_act_dur < MOVE_ACT_DUR {
+            return cell_idx;
+        }
+
+        while obj.last_act_dur >= MOVE_ACT_DUR {
+            let disp = obj.direction.to_vec() * obj.template.speed * MOVE_ACT_DUR;
+            obj.pos += disp;
+            obj.last_act_dur -= MOVE_ACT_DUR;
+        }
+
         obj.pos.x = obj.pos.x.clamp(0.0, MAX_OBJ_X);
         obj.pos.y = obj.pos.y.clamp(0.0, MAX_OBJ_Y);
 
+        obj.last_act_dur = 0.0;
         let new_cell_idx = Self::get_cell_idx(&obj.pos).unwrap();
 
         if obj.side == Side::Player {
             self.player_idx = Some(new_cell_idx);
         }
-
+        
         new_cell_idx
     }
 
