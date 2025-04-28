@@ -191,6 +191,8 @@ pub struct GameObjectTemplate {
     pub collide_span: f32,
 }
 
+pub const MOVE_DIST_FACTOR: f32 = 0.5;
+
 impl GameObjectTemplate {
     pub fn from_json(obj: &JsonValue, lib: &MeshTemplateLib) -> Result<Self, MyError> {
         if !obj.has_key("name") {
@@ -229,6 +231,8 @@ impl GameObjectTemplate {
         } else {
             0.0
         };
+
+        let max_move_dist = (speed * MOVE_DIST_FACTOR).floor();
 
         Ok(Self {
             name,

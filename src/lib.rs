@@ -15,7 +15,7 @@ use mytemplates::*;
 use mytypes::*;
 use std::time::Instant;
 
-const SMOOTH_FACTOR: f32 = 0.9;
+const FIXED_TIME_STEP: f32 = 1.0 / 60.0;
 
 pub struct App {
     map: GameMap,
@@ -69,11 +69,17 @@ impl App {
     pub fn run(&mut self) {
         self.init_opengl();
         while !self.window.should_close() {
-            let frame_time = self.last_update.elapsed().as_secs_f32() * 1000.0;
-            self.time_delta = frame_time * (1.0 - SMOOTH_FACTOR) + self.time_delta * SMOOTH_FACTOR;
+            let frame_time = self.last_update.elapsed().as_secs_f32();
+            self.time_delta += frame_time;
             self.last_update = Instant::now();
-            self.update(self.time_delta);
+
             self.process_events();
+
+            if self.time_delta > FIXED_TIME_STEP {
+                self.update(FIXED_TIME_STEP);
+                self.time_delta = 0.0;
+            }
+
             self.render();
             self.post_update();
         }

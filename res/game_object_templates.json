@@ -8,7 +8,7 @@
         "name": "player",
         "mesh": "player_tank",
         "hp": 200,
-        "speed": 20.0,
+        "speed": 400.0,
         "fire_point": [30.0, 0.0],
         "collide_span": 30.0
     }
