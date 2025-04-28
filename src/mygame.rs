@@ -7,7 +7,6 @@ use crate::mytypes::*;
 use cgmath::Vector2;
 use json::JsonValue;
 use log::{info, warn};
-use std::mem;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq)]
@@ -364,7 +363,7 @@ impl GameMap {
         if obj.side == Side::Player {
             self.player_idx = Some(new_cell_idx);
         }
-        
+
         new_cell_idx
     }
 

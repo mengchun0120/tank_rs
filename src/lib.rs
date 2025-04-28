@@ -1,3 +1,4 @@
+pub mod mycollide;
 pub mod mygame;
 pub mod myjsonutils;
 pub mod myopengl;
