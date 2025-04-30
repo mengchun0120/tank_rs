@@ -200,7 +200,7 @@ mod test_color_from_json {
 #[cfg(test)]
 mod test_collide {
     use cgmath::{Vector2, Zero};
-    use crate::mycollide::check_obj_collide;
+    use crate::mycollide::{check_obj_collide, check_collide_bound};
 
     #[test]
     fn both_pass_not_collide() {
@@ -284,5 +284,50 @@ mod test_collide {
 
         assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
         assert!(pos1 == Vector2::new(100.0, 130.0));
+    }
+
+    #[test]
+    fn not_collide_bound() {
+        let mut pos: Vector2<f32> = Vector2::new(10.0, 10.0);
+        let span: f32 = 10.0;
+        let direction: Vector2<f32> = Vector2::new(1.0, 1.0);
+        let bound: Vector2<f32> = Vector2::new(100.0, 100.0);
+
+        assert!(!check_collide_bound(&mut pos, span, &direction, &bound));
+    }
+
+    #[test]
+    fn collide_bound() {
+        let mut pos: Vector2<f32> = Vector2::new(0.0, 10.0);
+        let span: f32 = 10.0;
+        let direction: Vector2<f32> = Vector2::new(-1.0, -1.0);
+        let bound: Vector2<f32> = Vector2::new(200.0, 200.0);
+
+        assert!(check_collide_bound(&mut pos, span, &direction, &bound));
+        assert!(pos == Vector2::new(10.0, 20.0));
+
+        let mut pos: Vector2<f32> = Vector2::new(200.0, 200.0);
+        let direction: Vector2<f32> = Vector2::new(1.0, 2.0);
+
+        assert!(check_collide_bound(&mut pos, span, &direction, &bound));
+        assert!(pos == Vector2::new(190.0, 180.0));
+
+        let mut pos: Vector2<f32> = Vector2::new(200.0, 0.0);
+        let direction: Vector2<f32> = Vector2::new(1.0, -2.0);
+
+        assert!(check_collide_bound(&mut pos, span, &direction, &bound));
+        assert!(pos == Vector2::new(190.0, 20.0));
+
+        let mut pos: Vector2<f32> = Vector2::new(200.0, 40.0);
+        let direction: Vector2<f32> = Vector2::new(1.0, 0.0);
+
+        assert!(check_collide_bound(&mut pos, span, &direction, &bound));
+        assert!(pos == Vector2::new(190.0, 40.0));
+
+        let mut pos: Vector2<f32> = Vector2::new(50.0, 0.0);
+        let direction: Vector2<f32> = Vector2::new(0.0, -1.0);
+
+        assert!(check_collide_bound(&mut pos, span, &direction, &bound));
+        assert!(pos == Vector2::new(50.0, 10.0));
     }
 }
