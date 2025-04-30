@@ -196,3 +196,93 @@ mod test_color_from_json {
         assert!(alpha.is_err());
     }
 }
+
+#[cfg(test)]
+mod test_collide {
+    use cgmath::{Vector2, Zero};
+    use crate::mycollide::check_obj_collide;
+
+    #[test]
+    fn both_pass_not_collide() {
+        let mut pos1: Vector2<f32> = Vector2::zero();
+        let span1: f32 = 10.0;
+        let pass1 = true;
+        let direction1: Vector2<f32> = Vector2::new(1.0, 1.0);
+        let pos2: Vector2<f32> = Vector2::zero();
+        let span2: f32 = 20.0;
+        let pass2 = true;
+
+        assert!(!check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+    }
+
+    #[test]
+    fn both_nonpass_not_collide() {
+        let mut pos1: Vector2<f32> = Vector2::new(10.0, 10.0);
+        let span1: f32 = 10.0;
+        let pass1 = false;
+        let direction1: Vector2<f32> = Vector2::new(1.0, 1.0);
+        let pos2: Vector2<f32> = Vector2::new(45.0, 10.0);
+        let span2: f32 = 20.0;
+        let pass2 = false;
+
+        assert!(!check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+
+        let mut pos1: Vector2<f32> = Vector2::new(10.0, 10.0);
+        let pos2: Vector2<f32> = Vector2::new(10.0, 45.0);
+
+        assert!(!check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+    }
+
+    #[test]
+    fn pass_and_nonpass_collide() {
+        let mut pos1: Vector2<f32> = Vector2::new(50.0, 10.0);
+        let span1: f32 = 10.0;
+        let pass1 = true;
+        let direction1: Vector2<f32> = Vector2::new(1.0, 1.0);
+        let pos2: Vector2<f32> = Vector2::new(45.0, 10.0);
+        let span2: f32 = 20.0;
+        let pass2 = false;
+        let pos1_copy = pos1.clone();
+
+        assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+        assert!(pos1 == pos1_copy);
+    }
+
+    #[test]
+    fn both_nonpass_collide() {
+        let mut pos1: Vector2<f32> = Vector2::new(100.0, 100.0);
+        let span1: f32 = 10.0;
+        let pass1 = false;
+        let direction1: Vector2<f32> = Vector2::new(1.0, 2.0);
+        let pos2: Vector2<f32> = Vector2::new(85.0, 100.0);
+        let span2: f32 = 20.0;
+        let pass2 = false;
+                
+        assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+        assert!(pos1 == Vector2::new(85.0, 70.0));
+
+        let mut pos1: Vector2<f32> = Vector2::new(100.0, 100.0);
+        let direction1: Vector2<f32> = Vector2::new(-1.0, 2.0);
+
+        assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+        assert!(pos1 == Vector2::new(115.0, 70.0));
+
+        let mut pos1: Vector2<f32> = Vector2::new(100.0, 100.0);
+        let direction1: Vector2<f32> = Vector2::new(-1.0, -3.0);
+
+        assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+        assert!(pos1 == Vector2::new(110.0, 130.0));
+
+        let mut pos1: Vector2<f32> = Vector2::new(100.0, 100.0);
+        let direction1: Vector2<f32> = Vector2::new(-1.0, 0.0);
+
+        assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+        assert!(pos1 == Vector2::new(115.0, 100.0));
+
+        let mut pos1: Vector2<f32> = Vector2::new(100.0, 100.0);
+        let direction1: Vector2<f32> = Vector2::new(0.0, -1.0);
+
+        assert!(check_obj_collide(&mut pos1, span1, pass1, &direction1, &pos2, span2, pass2));
+        assert!(pos1 == Vector2::new(100.0, 130.0));
+    }
+}
