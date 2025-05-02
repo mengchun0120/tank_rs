@@ -200,60 +200,141 @@ mod test_color_from_json {
 #[cfg(test)]
 mod test_collide {
     use crate::mycollide::{check_collide_bound, check_collide_nonpass};
-    use cgmath::{Vector2, Zero};
+    use cgmath::Vector2;
 
     #[test]
-    fn not_collide_nonpass() {
-        let pos1: Vector2<f32> = Vector2::new(10.0, 10.0);
-        let span1: f32 = 10.0;
-        let direction1: Vector2<f32> = Vector2::new(1.0, 1.0);
-        let pos2: Vector2<f32> = Vector2::new(45.0, 10.0);
-        let span2: f32 = 20.0;
+    fn check_collide_nonpass_invaild_param() {
+        let pos1 = Vector2::new(10.0, 10.0);
+        let v = Vector2::new(0.0, 0.0);
+        let span1 = 10.0;
+        let pos2 = Vector2::new(40.0, 40.0);
+        let span2 = 20.0;
+        let time_delta = 10.0;
 
-        assert!(None == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2));
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta);
+        assert!(result.is_err());
 
-        let pos1: Vector2<f32> = Vector2::new(10.0, 10.0);
-        let pos2: Vector2<f32> = Vector2::new(10.0, 45.0);
+        let v = Vector2::new(1.0, 1.0);
+        let time_delta = 0.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta);
+        assert!(result.is_err());
 
-        assert!(None == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2));
+        let time_delta = 10.0;
+        let span1 = 0.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta);
+        assert!(result.is_err());
+
+        let span1 = 10.0;
+        let pos2 = Vector2::new(15.0, 15.0);
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta);
+        assert!(result.is_err());
     }
 
     #[test]
-    fn collide_nonpass() {
-        let pos1: Vector2<f32> = Vector2::new(100.0, 100.0);
-        let span1: f32 = 10.0;
-        let direction1: Vector2<f32> = Vector2::new(1.0, 2.0);
-        let pos2: Vector2<f32> = Vector2::new(85.0, 100.0);
-        let span2: f32 = 20.0;
+    fn check_collide_nonpass_return_none() {
+        let pos1 = Vector2::new(10.0, 10.0);
+        let v = Vector2::new(-1.0, 1.0);
+        let span1 = 10.0;
+        let pos2 = Vector2::new(40.0, 60.0);
+        let span2 = 20.0;
+        let time_delta = 10.0;
 
-        assert!(
-            Some(Vector2::new(15.0, 30.0))
-                == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2)
-        );
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
 
-        let direction1: Vector2<f32> = Vector2::new(-1.0, 2.0);
-        assert!(
-            Some(Vector2::new(15.0, 30.0))
-                == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2)
-        );
+        let v = Vector2::new(0.0, 1.0);
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
 
-        let direction1: Vector2<f32> = Vector2::new(-1.0, -3.0);
-        assert!(
-            Some(Vector2::new(10.0, 30.0))
-                == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2)
-        );
+        let pos2 = Vector2::new(15.0, 60.0);
+        let v = Vector2::new(1.0, 0.0);
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
 
-        let direction1: Vector2<f32> = Vector2::new(-1.0, 0.0);
-        assert!(
-            Some(Vector2::new(15.0, 0.0))
-                == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2)
-        );
+        let pos2 = Vector2::new(40.0, 60.0);
+        let v = Vector2::new(1.0, 2.0);
+        let time_delta = 5.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
 
-        let direction1: Vector2<f32> = Vector2::new(0.0, -1.0);
-        assert!(
-            Some(Vector2::new(0.0, 30.0))
-                == check_collide_nonpass(&pos1, span1, &direction1, &pos2, span2)
-        );
+        let v = Vector2::new(1.0, 2.0);
+        let time_delta = 5.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
+
+        let v = Vector2::new(6.0, 2.0);
+        let time_delta = 12.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
+
+        let pos1 = Vector2::new(80.0, 70.0);
+        let v = Vector2::new(-2.0, -7.0);
+        let pos2 = Vector2::new(30.0, 30.0);
+        let time_delta = 12.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
+
+        let pos1 = Vector2::new(50.0, 80.0);
+        let v = Vector2::new(0.0, -2.0);
+        let time_delta = 5.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
+
+        let pos1 = Vector2::new(70.0, 130.0);
+        let v = Vector2::new(0.0, -1.0);
+        let pos2 = Vector2::new(100.0, 100.0);
+        let time_delta = 10.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn check_collide_nonpass_return_some() {
+        let pos1 = Vector2::new(100.0, 100.0);
+        let span1 = 10.0;
+        let v = Vector2::new(-6.0, 5.0);
+        let pos2 = Vector2::new(60.0, 140.0);
+        let span2 = 20.0;
+        let time_delta = 3.0;
+
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
+
+        let pos2 = Vector2::new(150.0, 140.0);
+        let v = Vector2::new(4.0, 3.0);
+        let time_delta = 6.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 5.0);
+
+        let pos2 = Vector2::new(140.0, 60.0);
+        let v = Vector2::new(5.0, -5.0);
+        let time_delta = 3.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
+
+        let pos2 = Vector2::new(80.0, 140.0);
+        let v = Vector2::new(-3.0, 5.0);
+        let time_delta = 3.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
+
+        let pos2 = Vector2::new(150.0, 80.0);
+        let v = Vector2::new(5.0, -5.0);
+        let time_delta = 5.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 4.0);
+
+        let pos2 = Vector2::new(100.0, 60.0);
+        let v = Vector2::new(0.0, -5.0);
+        let time_delta = 3.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
+
+        let pos2 = Vector2::new(60.0, 80.0);
+        let v = Vector2::new(-5.0, 0.0);
+        let time_delta = 4.0;
+        let result = check_collide_nonpass(&pos1, span1, &v, &pos2, span2, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
     }
 
     #[test]

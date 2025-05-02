@@ -1,48 +1,71 @@
-use cgmath::Vector2;
+use crate::mytypes::MyError;
+use cgmath::{Vector2, Zero};
+use log::error;
 
 pub fn check_collide_nonpass(
     pos1: &Vector2<f32>,
     span1: f32,
-    direction1: &Vector2<f32>,
+    v: &Vector2<f32>,
     pos2: &Vector2<f32>,
     span2: f32,
-) -> Option<Vector2<f32>> {
-    let not_collide = pos1.x - span1 >= pos2.x + span2
-        || pos1.x + span1 <= pos2.x - span2
-        || pos1.y - span1 >= pos2.y + span2
-        || pos1.y + span1 <= pos2.y - span2;
-
-    if not_collide {
-        return None;
+    time_delta: f32,
+) -> Result<Option<f32>, MyError> {
+    if time_delta <= 0.0 || span1 <= 0.0 || span2 <= 0.0 || v.is_zero() {
+        error!(
+            "check_collide_nonpass: Invalid parameters: time_delta: {}, span1: {}, span2: {}, v: {:?}",
+            time_delta, span1, span2, v
+        );
+        return Err("check_collide_nonpass: Invalid parameter".into());
     }
 
-    if direction1.x == 0.0 && direction1.y == 0.0 {
-        return Some(Vector2::new(0.0, 0.0));
-    }
-
+    let v1 = Vector2::new(v.x.abs(), v.y.abs());
     let span_sum = span1 + span2;
-    let d = Vector2 {
-        x: direction1.x.abs(),
-        y: direction1.y.abs(),
-    };
-    let delta = if d.x > 0.0 && d.y > 0.0 {
-        let wx = direction1.x.signum() * (pos1.x - pos2.x) + span_sum;
-        let wy = direction1.y.signum() * (pos1.y - pos2.y) + span_sum;
 
-        if wx * d.y <= wy * d.x {
-            Vector2::new(wx, wx * d.y / d.x)
-        } else {
-            Vector2::new(wy * d.x / d.y, wy)
+    let wx = pos2.x - pos1.x;
+    let dx = wx.abs() - span_sum;
+    let tx = if dx >= 0.0 {
+        if v.x.signum() != wx.signum() {
+            return Ok(None);
         }
-    } else if d.y == 0.0 {
-        let wx = direction1.x.signum() * (pos1.x - pos2.x) + span_sum;
-        Vector2::new(wx, 0.0)
+        dx / v1.x
     } else {
-        let wy = direction1.y.signum() * (pos1.y - pos2.y) + span_sum;
-        Vector2::new(0.0, wy)
+        -1.0
     };
 
-    Some(delta)
+    let wy = pos2.y - pos1.y;
+    let dy = wy.abs() - span_sum;
+    let ty = if dy >= 0.0 {
+        if v.y.signum() != wy.signum() {
+            return Ok(None);
+        }
+        dy / v1.y
+    } else {
+        -1.0
+    };
+
+    if tx >= 0.0 || ty >= 0.0 {
+        if tx > ty {
+            if tx < time_delta && v1.y * tx < v.y.signum() * wy + span_sum {
+                Ok(Some(tx))
+            } else {
+                Ok(None)
+            }
+        } else if tx < ty {
+            if ty < time_delta && v1.x * ty < v.x.signum() * wx + span_sum {
+                Ok(Some(ty))
+            } else {
+                Ok(None)
+            }
+        } else {
+            if tx < time_delta {
+                Ok(Some(tx))
+            } else {
+                Ok(None)
+            }
+        }
+    } else {
+        Err("check_collide_nonpass: objects are already colliding".into())
+    }
 }
 
 pub fn check_collide_bound(

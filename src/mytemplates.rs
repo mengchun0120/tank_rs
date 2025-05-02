@@ -5,7 +5,7 @@ use crate::mytypes::*;
 use cgmath::{Vector2, Vector3, Vector4};
 use json::JsonValue;
 use log::info;
-use std::{cmp, collections::HashMap, fs, rc::Rc};
+use std::{collections::HashMap, fs, rc::Rc};
 
 pub struct Settings {
     settings: JsonValue,
@@ -231,8 +231,6 @@ impl GameObjectTemplate {
         } else {
             0.0
         };
-
-        let max_move_dist = (speed * MOVE_DIST_FACTOR).floor();
 
         Ok(Self {
             name,
