@@ -199,7 +199,7 @@ mod test_color_from_json {
 
 #[cfg(test)]
 mod test_collide {
-    use crate::mycollide::check_collide_nonpass;
+    use crate::mycollide::{check_collide_nonpass, check_collide_bound_nonpass};
     use cgmath::Vector2;
 
     #[test]
@@ -349,5 +349,85 @@ mod test_collide {
             .unwrap()
             .unwrap();
         assert!(result == 2.0);
+    }
+
+    #[test]
+    fn check_collide_bound_nonpass_return_err() {
+        let pos = Vector2::new(20.0, 20.0);
+        let span = 0.0;
+        let v = Vector2::new(1.0, 0.0);
+        let bound = Vector2::new(400.0, 400.0);
+        let time_delta = 4.0;
+
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta);
+        assert!(result.is_err());
+
+        let span = 10.0;
+        let v = Vector2::new(0.0, 0.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta);
+        assert!(result.is_err());
+
+        let v = Vector2::new(1.0, 0.0);
+        let bound = Vector2::new(-1.0, 0.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta);
+        assert!(result.is_err());
+
+        let bound = Vector2::new(400.0, 400.0);
+        let time_delta = -1.0;
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta);
+        assert!(result.is_err());
+
+        let pos = Vector2::new(0.0, 0.0);
+        let time_delta = 3.0;
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta);
+        assert!(result.is_err());
+
+        let pos = Vector2::new(0.0, 400.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn check_collide_bound_nonpass_return_non() {
+        let pos = Vector2::new(380.0, 380.0);
+        let span = 10.0;
+        let v = Vector2::new(1.0, 1.0);
+        let bound = Vector2::new(400.0, 400.0);
+        let time_delta = 4.0;
+
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta).unwrap();
+        assert!(result.is_none());
+
+        let pos = Vector2::new(30.0, 200.0);
+        let v = Vector2::new(-1.0, 0.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta).unwrap();
+        assert!(result.is_none());
+
+        let pos = Vector2::new(200.0, 20.0);
+        let v = Vector2::new(0.0, -1.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta).unwrap();
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn check_collide_bound_nonpass_return_some() {
+        let pos = Vector2::new(380.0, 380.0);
+        let span = 10.0;
+        let v = Vector2::new(5.0, 2.0);
+        let bound = Vector2::new(400.0, 400.0);
+        let time_delta = 4.0;
+
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
+
+        let pos = Vector2::new(30.0, 200.0);
+        let v = Vector2::new(-10.0, 0.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta).unwrap().unwrap();
+        assert!(result == 2.0);
+
+        let pos = Vector2::new(200.0, 20.0);
+        let v = Vector2::new(0.0, -10.0);
+        let result = check_collide_bound_nonpass(&pos, span, &v, &bound, time_delta).unwrap().unwrap();
+        assert!(result == 1.0);
     }
 }
