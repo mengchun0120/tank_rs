@@ -1,3 +1,19 @@
+mod my_error;
+mod systems;
+mod utils;
+
+use crate::systems::*;
+use crate::utils::*;
+use bevy::{log::LogPlugin, prelude::*};
+use clap::Parser;
+
 fn main() {
-    println!("Hello, world!");
+    let args = Args::parse();
+    let _guard = setup_log(&args.log_path);
+
+    App::new()
+        .add_plugins(DefaultPlugins.build().disable::<LogPlugin>())
+        .insert_resource(args)
+        .add_systems(Startup, setup_game)
+        .run();
 }
