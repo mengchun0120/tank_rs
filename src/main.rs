@@ -1,3 +1,4 @@
+mod game_lib;
 mod my_error;
 mod systems;
 mod utils;
