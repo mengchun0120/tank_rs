@@ -4,13 +4,12 @@ use bevy::prelude::*;
 
 pub fn setup_game(
     args: Res<Args>,
+    asset_server: Res<AssetServer>,
     mut commands: Commands,
     mut exit_app: MessageWriter<AppExit>,
     mut window: Single<&mut Window>,
 ) {
-    let game_lib = match GameLib::new(
-        args.config_path.as_path(),
-    ) {
+    let game_lib = match GameLib::new(args.config_path.as_path(), asset_server.as_ref()) {
         Ok(lib) => lib,
         Err(err) => {
             error!("Failed to initialize GameLib {}", err);
@@ -24,7 +23,6 @@ pub fn setup_game(
     window
         .resolution
         .set(config.window_width(), config.window_height());
-
 
     commands.insert_resource(game_lib);
 

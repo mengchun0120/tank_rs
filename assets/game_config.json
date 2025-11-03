@@ -1,4 +1,7 @@
 {
     "map_size": [40, 40],
-    "map_cell_size": 20.0
+    "map_cell_size": 20.0,
+    "image_files": {
+        "steel_tile": "steel_tile.png"
+    }
 }
