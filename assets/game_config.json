@@ -3,5 +3,12 @@
     "map_cell_size": 20.0,
     "image_files": {
         "steel_tile": "steel_tile.png"
-    }
+    },
+    "game_obj_configs": [
+        {
+            "name": "steel_tile",
+            "image": "steel_tile",
+            "size": [20.0, 20.0]
+        }
+    ]
 }

@@ -11,6 +11,7 @@ pub struct GameConfig {
     map_size: [u32; 2],
     pub map_cell_size: f32,
     image_files: HashMap<String, String>,
+    game_obj_configs: Vec<GameObjConfig>,
 }
 
 impl GameConfig {
@@ -23,10 +24,18 @@ impl GameConfig {
     }
 }
 
+#[derive(Debug, Resource, Deserialize)]
+pub struct GameObjConfig {
+    pub name: String,
+    pub image: String,
+    pub size: [f32; 2],
+}
+
 #[derive(Debug, Resource)]
 pub struct GameLib {
     pub config: GameConfig,
     pub images: HashMap<String, Handle<Image>>,
+    pub game_obj_config_map: HashMap<String, usize>,
 }
 
 impl GameLib {
@@ -36,8 +45,13 @@ impl GameLib {
     ) -> Result<Self, MyError> {
         let config: GameConfig = read_json(config_path)?;
         let images = Self::load_images(&config.image_files, asset_server);
+        let game_obj_config_map = Self::load_game_obj_config_map(&config.game_obj_configs);
 
-        let result = Self { config, images };
+        let result = Self {
+            config,
+            images,
+            game_obj_config_map,
+        };
 
         info!("GameLib initialized successfully");
 
@@ -52,6 +66,16 @@ impl GameLib {
 
         for (name, file_path) in image_files.iter() {
             result.insert(name.clone(), asset_server.load(file_path));
+        }
+
+        result
+    }
+
+    fn load_game_obj_config_map(game_obj_configs: &[GameObjConfig]) -> HashMap<String, usize> {
+        let mut result: HashMap<String, usize> = HashMap::new();
+
+        for i in 0..game_obj_configs.len() {
+            result.insert(game_obj_configs[i].name.clone(), i);
         }
 
         result
