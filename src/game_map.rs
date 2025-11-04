@@ -1,6 +1,20 @@
+use crate::game_lib::*;
 use crate::game_obj::*;
+use crate::utils::*;
 
 use bevy::prelude::*;
+use serde::Deserialize;
+
+#[derive(Deserialize)]
+pub struct GameMapObjConfig {
+    pub config_name: String,
+    pub pos: [f32; 2],
+}
+
+#[derive(Deserialize)]
+pub struct GameMapConfig {
+    pub game_objs: Vec<GameMapObjConfig>,
+}
 
 #[derive(Resource, Clone)]
 pub struct GameMapCell(Vec<GameObj>);
@@ -39,18 +53,56 @@ impl GameMapCell {
     }
 }
 
-pub struct GameMap(Vec<Vec<GameMapCell>>);
+#[derive(Resource)]
+pub struct GameMap {
+    cell_size: f32,
+    map: Vec<Vec<GameMapCell>>,
+}
 
 impl GameMap {
-    pub fn new(row_count: usize, col_count: usize) -> Self {
-        Self(vec![vec![GameMapCell::new(); col_count]; row_count])
+    pub fn new(cell_size: f32, row_count: usize, col_count: usize) -> Self {
+        Self {
+            cell_size,
+            map: vec![vec![GameMapCell::new(); col_count]; row_count],
+        }
     }
 
+    pub fn load(map_config: &GameMapConfig, game_lib: &GameLib, commands: &mut Commands) -> Self {
+        let config = &game_lib.config;
+        let mut map = Self::new(
+            config.map_cell_size,
+            config.map_row_count(),
+            config.map_col_count(),
+        );
+
+        map.add_objs(&map_config.game_objs, game_lib, commands);
+
+        map
+    }
+
+    #[inline]
     pub fn row_count(&self) -> usize {
-        self.0.len()
+        self.map.len()
     }
 
+    #[inline]
     pub fn col_count(&self) -> usize {
-        self.0[0].len()
+        self.map[0].len()
+    }
+
+    fn add_objs(
+        &mut self,
+        game_objs: &[GameMapObjConfig],
+        game_lib: &GameLib,
+        commands: &mut Commands,
+    ) {
+        for obj_config in game_objs {
+            if let Some(config_index) = game_lib.game_obj_config_map.get(&obj_config.config_name) {
+                let pos = arr_to_vec2(&obj_config.pos);
+                if let Some(obj) = GameObj::new(*config_index, &pos, game_lib, commands) {
+
+                }
+            }
+        }
     }
 }

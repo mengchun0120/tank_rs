@@ -8,19 +8,27 @@ use std::path::Path;
 
 #[derive(Debug, Resource, Deserialize)]
 pub struct GameConfig {
-    map_size: [u32; 2],
+    map_size: [usize; 2],
     pub map_cell_size: f32,
     image_files: HashMap<String, String>,
-    game_obj_configs: Vec<GameObjConfig>,
+    pub game_obj_configs: Vec<GameObjConfig>,
 }
 
 impl GameConfig {
+    pub fn map_row_count(&self) -> usize {
+        self.map_size[0]
+    }
+
+    pub fn map_col_count(&self) -> usize {
+        self.map_size[1]
+    }
+
     pub fn window_width(&self) -> f32 {
-        self.map_size[0] as f32 * self.map_cell_size
+        self.map_col_count() as f32 * self.map_cell_size
     }
 
     pub fn window_height(&self) -> f32 {
-        self.map_size[1] as f32 * self.map_cell_size
+        self.map_row_count() as f32 * self.map_cell_size
     }
 }
 
@@ -29,11 +37,13 @@ pub struct GameObjConfig {
     pub name: String,
     pub image: String,
     pub size: [f32; 2],
+    pub z: f32,
 }
 
 #[derive(Debug, Resource)]
 pub struct GameLib {
     pub config: GameConfig,
+    pub origin: Vec2,
     pub images: HashMap<String, Handle<Image>>,
     pub game_obj_config_map: HashMap<String, usize>,
 }
@@ -46,9 +56,11 @@ impl GameLib {
         let config: GameConfig = read_json(config_path)?;
         let images = Self::load_images(&config.image_files, asset_server);
         let game_obj_config_map = Self::load_game_obj_config_map(&config.game_obj_configs);
+        let origin = Vec2::new(-config.window_width() / 2.0, -config.window_height() / 2.0);
 
         let result = Self {
             config,
+            origin,
             images,
             game_obj_config_map,
         };
