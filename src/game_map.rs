@@ -9,6 +9,7 @@ use serde::Deserialize;
 pub struct GameMapObjConfig {
     pub config_name: String,
     pub pos: [f32; 2],
+    pub direction: Option<[f32; 2]>,
 }
 
 #[derive(Deserialize)]

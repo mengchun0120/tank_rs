@@ -27,9 +27,9 @@
      inkscape:deskcolor="#d1d1d1"
      inkscape:document-units="mm"
      showgrid="true"
-     inkscape:zoom="6.186083"
-     inkscape:cx="343.91714"
-     inkscape:cy="155.0254"
+     inkscape:zoom="1.5465208"
+     inkscape:cx="106.36779"
+     inkscape:cy="414.47876"
      inkscape:window-width="1920"
      inkscape:window-height="1112"
      inkscape:window-x="-8"
@@ -52,7 +52,16 @@
        visible="true" />
   </sodipodi:namedview>
   <defs
-     id="defs1" />
+     id="defs1">
+    <linearGradient
+       id="swatch1"
+       inkscape:swatch="solid">
+      <stop
+         style="stop-color:#878600;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+    </linearGradient>
+  </defs>
   <g
      inkscape:label="Layer 1"
      inkscape:groupmode="layer"
@@ -69,5 +78,83 @@
        style="fill:#0000e0;fill-opacity:1;stroke:#00dfdc;stroke-width:0.261224;stroke-opacity:1"
        d="M 70.228259,54.790376 99.785707,25.190902"
        id="path7" />
+    <rect
+       style="fill:#c59900;fill-opacity:1;stroke:#2e3800;stroke-width:0.23078;stroke-opacity:1"
+       id="rect1"
+       width="50.13052"
+       height="50.301605"
+       x="79.72303"
+       y="-70.145607"
+       transform="rotate(90)"
+       inkscape:export-filename="ai_tank.png"
+       inkscape:export-xdpi="83.143616"
+       inkscape:export-ydpi="83.143616" />
+    <ellipse
+       style="fill:#878600;fill-opacity:1;stroke:#646400;stroke-width:0.291812;stroke-opacity:1"
+       id="path1"
+       cx="45.409725"
+       cy="105.30156"
+       rx="15.556308"
+       ry="13.772177" />
+    <rect
+       style="fill:#686800;fill-opacity:1;stroke:#2e3800;stroke-width:0.235592;stroke-dasharray:none;stroke-opacity:1"
+       id="rect2"
+       width="10.290881"
+       height="10.264977"
+       x="59.86739"
+       y="99.912437" />
+    <rect
+       style="fill:#c8d400;fill-opacity:1;stroke:#646400;stroke-width:0.25;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3-8"
+       width="50.469467"
+       height="7.014401"
+       x="19.891771"
+       y="122.85601" />
+    <rect
+       style="fill:#c8d400;fill-opacity:1;stroke:#646400;stroke-width:0.25;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3-8-1"
+       width="50.469467"
+       height="7.014401"
+       x="19.720354"
+       y="79.716835" />
+    <rect
+       style="fill:#009900;fill-opacity:1;stroke:#2e3800;stroke-width:0.23078;stroke-opacity:1"
+       id="rect1-2"
+       width="50.13052"
+       height="50.301605"
+       x="79.75312"
+       y="-130.59166"
+       transform="rotate(90)"
+       inkscape:export-filename="player_tank.png"
+       inkscape:export-xdpi="83.143616"
+       inkscape:export-ydpi="83.143616" />
+    <ellipse
+       style="fill:#54ed00;fill-opacity:1;stroke:#646400;stroke-width:0.291812;stroke-opacity:1"
+       id="path1-7"
+       cx="105.85577"
+       cy="105.33166"
+       rx="15.556308"
+       ry="13.772177" />
+    <rect
+       style="fill:#005a00;fill-opacity:1;stroke:#2e3800;stroke-width:0.235592;stroke-dasharray:none;stroke-opacity:1"
+       id="rect2-6"
+       width="10.290881"
+       height="10.264977"
+       x="120.31344"
+       y="99.942528" />
+    <rect
+       style="fill:#5bef00;fill-opacity:1;stroke:#646400;stroke-width:0.25;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3-8-14"
+       width="50.469467"
+       height="7.014401"
+       x="80.337822"
+       y="122.8861" />
+    <rect
+       style="fill:#5bef00;fill-opacity:1;stroke:#006400;stroke-width:0.25;stroke-dasharray:none;stroke-opacity:1"
+       id="rect3-8-1-2"
+       width="50.469467"
+       height="7.014401"
+       x="80.166405"
+       y="79.746925" />
   </g>
 </svg>

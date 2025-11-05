@@ -1,5 +1,6 @@
 use crate::game_lib::*;
 use crate::game_map::*;
+use crate::game_obj::*;
 use crate::utils::*;
 use bevy::prelude::*;
 use std::path::Path;
@@ -36,6 +37,25 @@ pub fn setup_game(
 
     info!("Setup finished");
 }
+
+pub fn process_input(
+    player: Single<(Entity, &mut Transform), With<PlayerComponent>>,
+    keys: Res<ButtonInput<KeyCode>>,
+    game_lib: Res<GameLib>,
+    mut map: ResMut<GameMap>,
+    mut commands: Commands,
+) {
+    if keys.just_pressed(KeyCode::ArrowRight) {
+
+    } else if keys.just_pressed(KeyCode::ArrowLeft) {
+
+    } else if keys.just_pressed(KeyCode::ArrowUp) {
+
+    } else if keys.just_pressed(KeyCode::ArrowDown) {
+
+    }
+}
+
 
 fn load_game_lib<P: AsRef<Path>>(
     config_path: P,
@@ -79,4 +99,10 @@ fn load_map<P: AsRef<Path>>(
     commands.insert_resource(map);
 
     true
+}
+
+fn turn_right_player(
+    player: &Single<(Entity, &mut Transform), With<PlayerComponent>>,
+) {
+
 }

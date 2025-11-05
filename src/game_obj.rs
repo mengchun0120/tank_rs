@@ -15,6 +15,9 @@ pub struct AIComponent;
 #[derive(Component)]
 pub struct PlayerComponent;
 
+#[derive(Component)]
+pub struct Direction(pub Vec2);
+
 impl GameObj {
     pub fn new(
         config_index: usize,
@@ -36,6 +39,7 @@ impl GameObj {
 
     pub fn create_entity(
         pos: &Vec2,
+        direction: &Vec2,
         obj_config: &GameObjConfig,
         game_lib: &GameLib,
         commands: &mut Commands,
@@ -58,6 +62,8 @@ impl GameObj {
                 Visibility::Visible,
             ));
 
+        if let Some(d) = arr_to_vec2(&obj)
+
         if obj_config.obj_type == GameObjType::Tank {
             if obj_config.side == GameObjSide::AI {
                 entity.insert(AIComponent);
@@ -67,5 +73,11 @@ impl GameObj {
         }
 
         Some(entity.id())
+    }
+}
+
+impl Direction {
+    pub fn new(d: &Vec2) -> Self {
+        Self(d.clone().normalize())
     }
 }
