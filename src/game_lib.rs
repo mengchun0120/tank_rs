@@ -70,6 +70,11 @@ impl GameLib {
         Ok(result)
     }
 
+    #[inline]
+    pub fn get_screen_pos(&self, pos: &Vec2) -> Vec2 {
+        self.origin + pos
+    }
+
     fn load_images(
         image_files: &HashMap<String, String>,
         asset_server: &AssetServer,

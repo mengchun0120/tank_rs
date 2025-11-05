@@ -35,7 +35,7 @@ impl GameObj {
         commands: &mut Commands,
     ) -> Option<Entity> {
         let Some(image) = game_lib.images.get(&obj_config.name) else {
-            error!("Cannot find image {}", obj_config.name);
+            error!("Cannot find image {}", obj_config.image);
             return None;
         };
         let size = arr_to_vec2(&obj_config.size);
@@ -49,6 +49,7 @@ impl GameObj {
                     ..default()
                 },
                 Transform::from_xyz(pos.x, pos.y, obj_config.z),
+                Visibility::Visible,
             ))
             .id();
 

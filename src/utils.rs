@@ -19,6 +19,9 @@ pub struct Args {
 
     #[arg(short, long)]
     pub config_path: PathBuf,
+
+    #[arg(short, long)]
+    pub map_path: PathBuf,
 }
 
 pub fn read_json<T, P>(path: P) -> Result<T, MyError>

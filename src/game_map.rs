@@ -56,6 +56,8 @@ impl GameMapCell {
 #[derive(Resource)]
 pub struct GameMap {
     cell_size: f32,
+    width: f32,
+    height: f32,
     map: Vec<Vec<GameMapCell>>,
 }
 
@@ -63,6 +65,8 @@ impl GameMap {
     pub fn new(cell_size: f32, row_count: usize, col_count: usize) -> Self {
         Self {
             cell_size,
+            width: col_count as f32 * cell_size,
+            height: row_count as f32 * cell_size,
             map: vec![vec![GameMapCell::new(); col_count]; row_count],
         }
     }
@@ -77,6 +81,8 @@ impl GameMap {
 
         map.add_objs(&map_config.game_objs, game_lib, commands);
 
+        info!("Map loaded successfully");
+
         map
     }
 
@@ -90,6 +96,21 @@ impl GameMap {
         self.map[0].len()
     }
 
+    #[inline]
+    pub fn is_inside(&self, pos: &Vec2) -> bool {
+        pos.x >= 0.0 && pos.x < self.width && pos.y >= 0.0 && pos.y < self.height
+    }
+
+    #[inline]
+    pub fn get_row(&self, y: f32) -> i32 {
+        (y / self.cell_size).floor() as i32
+    }
+
+    #[inline]
+    pub fn get_col(&self, x: f32) -> i32 {
+        (x / self.cell_size).floor() as i32
+    }
+
     fn add_objs(
         &mut self,
         game_objs: &[GameMapObjConfig],
@@ -99,8 +120,20 @@ impl GameMap {
         for obj_config in game_objs {
             if let Some(config_index) = game_lib.game_obj_config_map.get(&obj_config.config_name) {
                 let pos = arr_to_vec2(&obj_config.pos);
-                if let Some(obj) = GameObj::new(*config_index, &pos, game_lib, commands) {
+                if !self.is_inside(&pos) {
+                    error!("Position {:?} is outside map", pos);
+                    continue;
+                }
 
+                if let Some(obj) = GameObj::new(
+                    *config_index,
+                    &game_lib.get_screen_pos(&pos),
+                    game_lib,
+                    commands,
+                ) {
+                    let row = self.get_row(pos.y) as usize;
+                    let col = self.get_col(pos.x) as usize;
+                    self.map[row][col].add(obj);
                 }
             }
         }

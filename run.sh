@@ -1,1 +1,1 @@
-RUST_LOG="tank_rs=info" cargo run -- -l game.log -c assets/game_config.json
+RUST_LOG="tank_rs=info" cargo run -- -l game.log -c assets/game_config.json -m assets/map_01.json
