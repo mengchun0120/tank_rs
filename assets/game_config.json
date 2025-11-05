@@ -2,14 +2,34 @@
     "map_size": [20, 20],
     "map_cell_size": 40.0,
     "image_files": {
-        "steel_tile": "steel_tile.png"
+        "steel_tile": "steel_tile.png",
+        "ai_tank": "ai_tank.png",
+        "player_tank": "player_tank.png"
     },
     "game_obj_configs": [
+        {
+            "name": "player_tank",
+            "image": "player_tank",
+            "size": [60.0, 60.0],
+            "z": 0.0,
+            "obj_type": "Tank",
+            "side": "Player"
+        },
         {
             "name": "steel_tile",
             "image": "steel_tile",
             "size": [40.0, 40.0],
-            "z": -1.0
+            "z": -1.0,
+            "obj_type": "Tile",
+            "side": "Neutral"
+        },
+        {
+            "name": "ai_tank",
+            "image": "ai_tank",
+            "size": [60.0, 60.0],
+            "z": 0.0,
+            "obj_type": "Tank",
+            "side": "AI"
         }
     ]
 }

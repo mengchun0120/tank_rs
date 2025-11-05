@@ -38,6 +38,23 @@ pub struct GameObjConfig {
     pub image: String,
     pub size: [f32; 2],
     pub z: f32,
+    pub obj_type: GameObjType,
+    pub side: GameObjSide,
+}
+
+#[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
+pub enum GameObjType {
+    Tile,
+    Tank,
+    Missile,
+    Effect,
+}
+
+#[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
+pub enum GameObjSide {
+    Player,
+    AI,
+    Neutral,
 }
 
 #[derive(Debug, Resource)]

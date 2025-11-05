@@ -3,6 +3,14 @@
         {
             "config_name": "steel_tile",
             "pos": [100.0, 100.0]
+        },
+        {
+            "config_name": "ai_tank",
+            "pos": [200.0, 100.0]
+        },
+        {
+            "config_name": "player_tank",
+            "pos": [300.0, 100.0]
         }
     ]
 }

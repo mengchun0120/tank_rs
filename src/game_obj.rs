@@ -9,6 +9,12 @@ pub struct GameObj {
     pub entity: Entity,
 }
 
+#[derive(Component)]
+pub struct AIComponent;
+
+#[derive(Component)]
+pub struct PlayerComponent;
+
 impl GameObj {
     pub fn new(
         config_index: usize,
@@ -40,7 +46,7 @@ impl GameObj {
         };
         let size = arr_to_vec2(&obj_config.size);
 
-        let entity = commands
+        let mut entity = commands
             .spawn((
                 Sprite {
                     image: image.clone(),
@@ -50,9 +56,16 @@ impl GameObj {
                 },
                 Transform::from_xyz(pos.x, pos.y, obj_config.z),
                 Visibility::Visible,
-            ))
-            .id();
+            ));
 
-        Some(entity)
+        if obj_config.obj_type == GameObjType::Tank {
+            if obj_config.side == GameObjSide::AI {
+                entity.insert(AIComponent);
+            } else if obj_config.side == GameObjSide::Player {
+                entity.insert(PlayerComponent);
+            }
+        }
+
+        Some(entity.id())
     }
 }
