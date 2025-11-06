@@ -39,20 +39,20 @@ pub fn setup_game(
 }
 
 pub fn process_input(
-    player: Single<(Entity, &mut Transform), With<PlayerComponent>>,
     keys: Res<ButtonInput<KeyCode>>,
     game_lib: Res<GameLib>,
-    mut map: ResMut<GameMap>,
     mut commands: Commands,
+    mut player: Single<(Entity, &mut Transform, &mut DirectionComponent), With<PlayerComponent>>,
+    mut map: ResMut<GameMap>,
 ) {
     if keys.just_pressed(KeyCode::ArrowRight) {
-
+        change_direction_player(Direction::Right, &mut player);
     } else if keys.just_pressed(KeyCode::ArrowLeft) {
-
+        change_direction_player(Direction::Left, &mut player);
     } else if keys.just_pressed(KeyCode::ArrowUp) {
-
+        change_direction_player(Direction::Up, &mut player);
     } else if keys.just_pressed(KeyCode::ArrowDown) {
-
+        change_direction_player(Direction::Down, &mut player);
     }
 }
 
@@ -101,8 +101,11 @@ fn load_map<P: AsRef<Path>>(
     true
 }
 
-fn turn_right_player(
-    player: &Single<(Entity, &mut Transform), With<PlayerComponent>>,
+fn change_direction_player(
+    d: Direction,
+    player: &mut Single<(Entity, &mut Transform, &mut DirectionComponent), With<PlayerComponent>>,
 ) {
-
+    let new_direction = d.into();
+    player.1.rotation = GameObj::get_rotation(&new_direction);
+    player.2.0 = new_direction;
 }

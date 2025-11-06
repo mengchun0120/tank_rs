@@ -1,4 +1,5 @@
 use crate::game_lib::*;
+use crate::game_map::*;
 use crate::utils::*;
 
 use bevy::prelude::*;
@@ -16,17 +17,18 @@ pub struct AIComponent;
 pub struct PlayerComponent;
 
 #[derive(Component)]
-pub struct Direction(pub Vec2);
+pub struct DirectionComponent(pub Vec2);
 
 impl GameObj {
     pub fn new(
         config_index: usize,
         pos: &Vec2,
+        direction: Direction,
         game_lib: &GameLib,
         commands: &mut Commands,
     ) -> Option<Self> {
         let obj_config = &game_lib.config.game_obj_configs[config_index];
-        let Some(entity) = Self::create_entity(pos, obj_config, game_lib, commands) else {
+        let Some(entity) = Self::create_entity(pos, direction, obj_config, game_lib, commands) else {
             return None;
         };
         let obj = Self {
@@ -39,7 +41,7 @@ impl GameObj {
 
     pub fn create_entity(
         pos: &Vec2,
-        direction: &Vec2,
+        direction: Direction,
         obj_config: &GameObjConfig,
         game_lib: &GameLib,
         commands: &mut Commands,
@@ -50,6 +52,8 @@ impl GameObj {
         };
         let size = arr_to_vec2(&obj_config.size);
 
+        let to: Vec2 = direction.into();
+
         let mut entity = commands
             .spawn((
                 Sprite {
@@ -58,11 +62,14 @@ impl GameObj {
                     image_mode: SpriteImageMode::Scale(ScalingMode::FillCenter),
                     ..default()
                 },
-                Transform::from_xyz(pos.x, pos.y, obj_config.z),
+                Transform {
+                    translation: Vec3::new(pos.x, pos.y, obj_config.z),
+                    rotation: Self::get_rotation(&to),
+                    ..default()
+                },
                 Visibility::Visible,
+                DirectionComponent(to),
             ));
-
-        if let Some(d) = arr_to_vec2(&obj)
 
         if obj_config.obj_type == GameObjType::Tank {
             if obj_config.side == GameObjSide::AI {
@@ -74,10 +81,9 @@ impl GameObj {
 
         Some(entity.id())
     }
-}
 
-impl Direction {
-    pub fn new(d: &Vec2) -> Self {
-        Self(d.clone().normalize())
+    pub fn get_rotation(to: &Vec2) -> Quat {
+        let from = Vec2::new(1.0, 0.0);
+        Quat::from_rotation_arc_2d(from, to.clone())
     }
 }

@@ -14,24 +14,6 @@ pub struct GameConfig {
     pub game_obj_configs: Vec<GameObjConfig>,
 }
 
-impl GameConfig {
-    pub fn map_row_count(&self) -> usize {
-        self.map_size[0]
-    }
-
-    pub fn map_col_count(&self) -> usize {
-        self.map_size[1]
-    }
-
-    pub fn window_width(&self) -> f32 {
-        self.map_col_count() as f32 * self.map_cell_size
-    }
-
-    pub fn window_height(&self) -> f32 {
-        self.map_row_count() as f32 * self.map_cell_size
-    }
-}
-
 #[derive(Debug, Resource, Deserialize)]
 pub struct GameObjConfig {
     pub name: String,
@@ -63,6 +45,24 @@ pub struct GameLib {
     pub origin: Vec2,
     pub images: HashMap<String, Handle<Image>>,
     pub game_obj_config_map: HashMap<String, usize>,
+}
+
+impl GameConfig {
+    pub fn map_row_count(&self) -> usize {
+        self.map_size[0]
+    }
+
+    pub fn map_col_count(&self) -> usize {
+        self.map_size[1]
+    }
+
+    pub fn window_width(&self) -> f32 {
+        self.map_col_count() as f32 * self.map_cell_size
+    }
+
+    pub fn window_height(&self) -> f32 {
+        self.map_row_count() as f32 * self.map_cell_size
+    }
 }
 
 impl GameLib {

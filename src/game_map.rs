@@ -9,7 +9,15 @@ use serde::Deserialize;
 pub struct GameMapObjConfig {
     pub config_name: String,
     pub pos: [f32; 2],
-    pub direction: Option<[f32; 2]>,
+    pub direction: Direction,
+}
+
+#[derive(Deserialize, Clone)]
+pub enum Direction {
+    Right,
+    Left,
+    Up,
+    Down,
 }
 
 #[derive(Deserialize)]
@@ -129,6 +137,7 @@ impl GameMap {
                 if let Some(obj) = GameObj::new(
                     *config_index,
                     &game_lib.get_screen_pos(&pos),
+                    obj_config.direction.clone(),
                     game_lib,
                     commands,
                 ) {
@@ -137,6 +146,17 @@ impl GameMap {
                     self.map[row][col].add(obj);
                 }
             }
+        }
+    }
+}
+
+impl From<Direction> for Vec2 {
+    fn from(direction: Direction) -> Self {
+        match direction {
+            Direction::Left => Vec2::new(-1.0, 0.0),
+            Direction::Right => Vec2::new(1.0, 0.0),
+            Direction::Up => Vec2::new(0.0, 1.0),
+            Direction::Down => Vec2::new(0.0, -1.0),
         }
     }
 }

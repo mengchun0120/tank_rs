@@ -18,5 +18,6 @@ fn main() {
         .add_plugins(DefaultPlugins.build().disable::<LogPlugin>())
         .insert_resource(args)
         .add_systems(Startup, setup_game)
+        .add_systems(Update, process_input)
         .run();
 }
