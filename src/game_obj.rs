@@ -17,18 +17,43 @@ pub struct AIComponent;
 pub struct PlayerComponent;
 
 #[derive(Component)]
-pub struct DirectionComponent(pub Vec2);
+pub struct Movable {
+    pub direction: Vec2,
+    pub speed: f32,
+}
+
+#[derive(Component)]
+pub struct GameObjInfo {
+    pub config_index: usize,
+    pub pos: Vec2,
+    pub map_pos: MapPos,
+}
+
+#[derive(Component, Clone, Copy, Eq, PartialEq)]
+pub struct MapPos {
+    pub row: usize,
+    pub col: usize,
+}
 
 impl GameObj {
     pub fn new(
         config_index: usize,
-        pos: &Vec2,
+        pos: Vec2,
+        map_pos: MapPos,
         direction: Direction,
         game_lib: &GameLib,
         commands: &mut Commands,
     ) -> Option<Self> {
         let obj_config = &game_lib.config.game_obj_configs[config_index];
-        let Some(entity) = Self::create_entity(pos, direction, obj_config, game_lib, commands) else {
+        let Some(entity) = Self::create_entity(
+            config_index,
+            pos,
+            map_pos,
+            direction,
+            obj_config,
+            game_lib,
+            commands,
+        ) else {
             return None;
         };
         let obj = Self {
@@ -40,7 +65,9 @@ impl GameObj {
     }
 
     pub fn create_entity(
-        pos: &Vec2,
+        config_index: usize,
+        pos: Vec2,
+        map_pos: MapPos,
         direction: Direction,
         obj_config: &GameObjConfig,
         game_lib: &GameLib,
@@ -53,25 +80,34 @@ impl GameObj {
         let size = arr_to_vec2(&obj_config.size);
 
         let to: Vec2 = direction.into();
+        let screen_pos = game_lib.get_screen_pos(pos);
 
-        let mut entity = commands
-            .spawn((
-                Sprite {
-                    image: image.clone(),
-                    custom_size: Some(size),
-                    image_mode: SpriteImageMode::Scale(ScalingMode::FillCenter),
-                    ..default()
-                },
-                Transform {
-                    translation: Vec3::new(pos.x, pos.y, obj_config.z),
-                    rotation: Self::get_rotation(&to),
-                    ..default()
-                },
-                Visibility::Visible,
-                DirectionComponent(to),
-            ));
+        let mut entity = commands.spawn((
+            Sprite {
+                image: image.clone(),
+                custom_size: Some(size),
+                image_mode: SpriteImageMode::Scale(ScalingMode::FillCenter),
+                ..default()
+            },
+            Transform {
+                translation: Vec3::new(screen_pos.x, screen_pos.y, obj_config.z),
+                rotation: get_rotation(to),
+                ..default()
+            },
+            GameObjInfo {
+                config_index,
+                pos,
+                map_pos,
+            },
+            Visibility::Visible,
+        ));
 
         if obj_config.obj_type == GameObjType::Tank {
+            entity.insert(Movable {
+                direction: to,
+                speed: obj_config.speed(),
+            });
+
             if obj_config.side == GameObjSide::AI {
                 entity.insert(AIComponent);
             } else if obj_config.side == GameObjSide::Player {
@@ -80,10 +116,5 @@ impl GameObj {
         }
 
         Some(entity.id())
-    }
-
-    pub fn get_rotation(to: &Vec2) -> Quat {
-        let from = Vec2::new(1.0, 0.0);
-        Quat::from_rotation_arc_2d(from, to.clone())
     }
 }

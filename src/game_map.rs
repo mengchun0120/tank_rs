@@ -12,7 +12,7 @@ pub struct GameMapObjConfig {
     pub direction: Direction,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize, Clone, Copy)]
 pub enum Direction {
     Right,
     Left,
@@ -33,11 +33,11 @@ impl GameMapCell {
         Self(Vec::new())
     }
 
-    pub fn add(&mut self, obj: GameObj) {
+    pub fn push(&mut self, obj: GameObj) {
         self.0.push(obj);
     }
 
-    pub fn remove(&mut self, entity: Entity) -> Option<GameObj> {
+    pub fn pop(&mut self, entity: Entity) -> Option<GameObj> {
         let mut index: Option<usize> = None;
 
         for i in 0..self.0.len() {
@@ -65,8 +65,8 @@ impl GameMapCell {
 #[derive(Resource)]
 pub struct GameMap {
     cell_size: f32,
-    width: f32,
-    height: f32,
+    pub width: f32,
+    pub height: f32,
     map: Vec<Vec<GameMapCell>>,
 }
 
@@ -106,18 +106,19 @@ impl GameMap {
     }
 
     #[inline]
-    pub fn is_inside(&self, pos: &Vec2) -> bool {
-        pos.x >= 0.0 && pos.x < self.width && pos.y >= 0.0 && pos.y < self.height
+    pub fn is_inside(&self, pos: &Vec2, collide_span: f32) -> bool {
+        pos.x >= collide_span
+            && pos.x + collide_span < self.width
+            && pos.y >= collide_span
+            && pos.y + collide_span < self.height
     }
 
     #[inline]
-    pub fn get_row(&self, y: f32) -> i32 {
-        (y / self.cell_size).floor() as i32
-    }
-
-    #[inline]
-    pub fn get_col(&self, x: f32) -> i32 {
-        (x / self.cell_size).floor() as i32
+    pub fn get_map_pos(&self, pos: &Vec2) -> MapPos {
+        MapPos {
+            row: (pos.y / self.cell_size).floor() as usize,
+            col: (pos.x / self.cell_size).floor() as usize,
+        }
     }
 
     fn add_objs(
@@ -126,24 +127,30 @@ impl GameMap {
         game_lib: &GameLib,
         commands: &mut Commands,
     ) {
-        for obj_config in game_objs {
-            if let Some(config_index) = game_lib.game_obj_config_map.get(&obj_config.config_name) {
-                let pos = arr_to_vec2(&obj_config.pos);
-                if !self.is_inside(&pos) {
+        for map_obj_config in game_objs {
+            if let Some(config_index) = game_lib
+                .game_obj_config_map
+                .get(&map_obj_config.config_name)
+            {
+                let obj_config = game_lib.get_obj_config(*config_index);
+                let pos = arr_to_vec2(&map_obj_config.pos);
+
+                if !self.is_inside(&pos, obj_config.collide_span()) {
                     error!("Position {:?} is outside map", pos);
                     continue;
                 }
 
+                let map_pos = self.get_map_pos(&pos);
+
                 if let Some(obj) = GameObj::new(
                     *config_index,
-                    &game_lib.get_screen_pos(&pos),
-                    obj_config.direction.clone(),
+                    pos,
+                    map_pos,
+                    map_obj_config.direction,
                     game_lib,
                     commands,
                 ) {
-                    let row = self.get_row(pos.y) as usize;
-                    let col = self.get_col(pos.x) as usize;
-                    self.map[row][col].add(obj);
+                    self.map[map_pos.row][map_pos.col].push(obj);
                 }
             }
         }

@@ -13,7 +13,9 @@
             "size": [60.0, 60.0],
             "z": 0.0,
             "obj_type": "Tank",
-            "side": "Player"
+            "side": "Player",
+            "collide_span": 30.0,
+            "speed": 20.0
         },
         {
             "name": "steel_tile",
@@ -21,7 +23,8 @@
             "size": [40.0, 40.0],
             "z": -1.0,
             "obj_type": "Tile",
-            "side": "Neutral"
+            "side": "Neutral",
+            "collide_span": 20.0
         },
         {
             "name": "ai_tank",
@@ -29,7 +32,9 @@
             "size": [60.0, 60.0],
             "z": 0.0,
             "obj_type": "Tank",
-            "side": "AI"
+            "side": "AI",
+            "collide_span": 30.0,
+            "speed": 20.0
         }
     ]
 }

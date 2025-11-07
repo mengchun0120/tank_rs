@@ -22,6 +22,8 @@ pub struct GameObjConfig {
     pub z: f32,
     pub obj_type: GameObjType,
     pub side: GameObjSide,
+    speed: Option<f32>,
+    collide_span: Option<f32>,
 }
 
 #[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
@@ -88,8 +90,13 @@ impl GameLib {
     }
 
     #[inline]
-    pub fn get_screen_pos(&self, pos: &Vec2) -> Vec2 {
+    pub fn get_screen_pos(&self, pos: Vec2) -> Vec2 {
         self.origin + pos
+    }
+
+    #[inline]
+    pub fn get_obj_config(&self, config_index: usize) -> &GameObjConfig {
+        &self.config.game_obj_configs[config_index]
     }
 
     fn load_images(
@@ -113,5 +120,17 @@ impl GameLib {
         }
 
         result
+    }
+}
+
+impl GameObjConfig {
+    #[inline]
+    pub fn speed(&self) -> f32 {
+        self.speed.map_or(0.0, |s| s)
+    }
+
+    #[inline]
+    pub fn collide_span(&self) -> f32 {
+        self.collide_span.map_or(0.0, |c| c)
     }
 }

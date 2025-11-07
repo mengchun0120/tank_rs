@@ -42,20 +42,17 @@ pub fn process_input(
     keys: Res<ButtonInput<KeyCode>>,
     game_lib: Res<GameLib>,
     mut commands: Commands,
-    mut player: Single<(Entity, &mut Transform, &mut DirectionComponent), With<PlayerComponent>>,
+    mut player: Single<(Entity, &mut Transform, &mut Movable, &GameObjInfo), With<PlayerComponent>>,
     mut map: ResMut<GameMap>,
+    time: Res<Time>,
 ) {
     if keys.just_pressed(KeyCode::ArrowRight) {
-        change_direction_player(Direction::Right, &mut player);
+        move_player(Direction::Right, game_lib.as_ref(), player.as_mut())
     } else if keys.just_pressed(KeyCode::ArrowLeft) {
-        change_direction_player(Direction::Left, &mut player);
     } else if keys.just_pressed(KeyCode::ArrowUp) {
-        change_direction_player(Direction::Up, &mut player);
     } else if keys.just_pressed(KeyCode::ArrowDown) {
-        change_direction_player(Direction::Down, &mut player);
     }
 }
-
 
 fn load_game_lib<P: AsRef<Path>>(
     config_path: P,
@@ -101,11 +98,40 @@ fn load_map<P: AsRef<Path>>(
     true
 }
 
-fn change_direction_player(
+fn move_player(
     d: Direction,
-    player: &mut Single<(Entity, &mut Transform, &mut DirectionComponent), With<PlayerComponent>>,
+    game_lib: &GameLib,
+    player: &mut Single<
+        (Entity, &mut Transform, &mut Movable, &GameObjInfo),
+        With<PlayerComponent>,
+    >,
+    map: &mut GameMap,
+    time: &Time,
 ) {
     let new_direction = d.into();
-    player.1.rotation = GameObj::get_rotation(&new_direction);
-    player.2.0 = new_direction;
+    let obj_config = &game_lib.config.game_obj_configs[player.3.config_index];
+    if player.2.direction != new_direction {
+        player.1.rotation = get_rotation(new_direction);
+        player.2.direction = new_direction;
+    } else {
+        let velocity = new_direction * obj_config.speed();
+        let (_, time_delta) = check_collide_bounds(
+            player.3.pos,
+            velocity,
+            obj_config.collide_span(),
+            time.delta_secs(),
+            map.width,
+            map.height,
+        );
+        let delta = velocity * time_delta;
+        let new_pos = player.3.pos + delta;
+
+        if new_map_pos != player.3.map_pos {
+
+        }
+
+        let new_screen_pos = game_lib.get_screen_pos(new_pos);
+        player.1.translation.x = new_screen_pos.x;
+        player.1.translation.y = new_screen_pos.y;
+    }
 }

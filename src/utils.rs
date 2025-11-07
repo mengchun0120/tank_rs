@@ -2,6 +2,7 @@ use crate::my_error::*;
 
 use bevy::prelude::*;
 use clap::Parser;
+use core::f32;
 use serde::de::DeserializeOwned;
 use serde_json;
 use std::{
@@ -55,6 +56,45 @@ pub fn setup_log<P: AsRef<Path>>(log_path: P) -> WorkerGuard {
     guard
 }
 
+#[inline]
 pub fn arr_to_vec2(v: &[f32; 2]) -> Vec2 {
     Vec2 { x: v[0], y: v[1] }
+}
+
+#[inline]
+pub fn get_rotation(d: Vec2) -> Quat {
+    let from = Vec2::new(1.0, 0.0);
+    Quat::from_rotation_arc_2d(from, d)
+}
+
+pub fn check_collide_bounds(
+    pos: Vec2,
+    velocity: Vec2,
+    collide_span: f32,
+    time_delta: f32,
+    width: f32,
+    height: f32,
+) -> (bool, f32) {
+    let time_delta_x = if velocity.x > 0.0 {
+        (width - pos.x - collide_span) / velocity.x
+    } else if velocity.x < 0.0 {
+        (pos.x - collide_span) / (-velocity.x)
+    } else {
+        f32::INFINITY
+    };
+
+    let time_delta_y = if velocity.y > 0.0 {
+        (height - pos.y - collide_span) / velocity.y
+    } else if velocity.y < 0.0 {
+        (pos.y - collide_span) / (-velocity.y)
+    } else {
+        f32::INFINITY
+    };
+
+    let time_delta_min = time_delta_x.min(time_delta_y);
+    if time_delta_min < time_delta {
+        (true, time_delta_min)
+    } else {
+        (false, time_delta)
+    }
 }
