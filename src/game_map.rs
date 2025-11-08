@@ -4,6 +4,7 @@ use crate::utils::*;
 
 use bevy::prelude::*;
 use serde::Deserialize;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Deserialize)]
 pub struct GameMapObjConfig {
@@ -25,50 +26,48 @@ pub struct GameMapConfig {
     pub game_objs: Vec<GameMapObjConfig>,
 }
 
-#[derive(Resource, Clone)]
-pub struct GameMapCell(Vec<GameObj>);
-
-impl GameMapCell {
-    pub fn new() -> Self {
-        Self(Vec::new())
-    }
-
-    pub fn push(&mut self, obj: GameObj) {
-        self.0.push(obj);
-    }
-
-    pub fn pop(&mut self, entity: Entity) -> Option<GameObj> {
-        let mut index: Option<usize> = None;
-
-        for i in 0..self.0.len() {
-            if self.0[i].entity == entity {
-                index = Some(i);
-                break;
-            }
-        }
-
-        let mut result: Option<GameObj> = None;
-
-        if let Some(i) = index {
-            if i < self.0.len() - 1 {
-                result = Some(self.0[i].clone());
-                self.0[i] = self.0.pop().unwrap();
-            } else {
-                result = Some(self.0.pop().unwrap());
-            }
-        }
-
-        result
-    }
-}
-
 #[derive(Resource)]
 pub struct GameMap {
     cell_size: f32,
     pub width: f32,
     pub height: f32,
-    map: Vec<Vec<GameMapCell>>,
+    map: Vec<Vec<HashSet<Entity>>>,
+    entities: HashMap<Entity, GameObj>,
 }
+
+// impl GameMapCell {
+//     pub fn new() -> Self {
+//         Self(Vec::new())
+//     }
+
+//     pub fn push(&mut self, obj: GameObj) {
+//         self.0.push(obj);
+//     }
+
+//     pub fn pop(&mut self, entity: Entity) -> Option<GameObj> {
+//         let mut index: Option<usize> = None;
+
+//         for i in 0..self.0.len() {
+//             if self.0[i].entity == entity {
+//                 index = Some(i);
+//                 break;
+//             }
+//         }
+
+//         let mut result: Option<GameObj> = None;
+
+//         if let Some(i) = index {
+//             if i < self.0.len() - 1 {
+//                 result = Some(self.0[i].clone());
+//                 self.0[i] = self.0.pop().unwrap();
+//             } else {
+//                 result = Some(self.0.pop().unwrap());
+//             }
+//         }
+
+//         result
+//     }
+// }
 
 impl GameMap {
     pub fn new(cell_size: f32, row_count: usize, col_count: usize) -> Self {
@@ -76,7 +75,8 @@ impl GameMap {
             cell_size,
             width: col_count as f32 * cell_size,
             height: row_count as f32 * cell_size,
-            map: vec![vec![GameMapCell::new(); col_count]; row_count],
+            map: vec![vec![HashSet::new(); col_count]; row_count],
+            entities: HashMap::new(),
         }
     }
 
@@ -121,6 +121,34 @@ impl GameMap {
         }
     }
 
+    #[inline]
+    pub fn get_obj(&self, e: &Entity) -> Option<&GameObj> {
+        self.entities.get(e)
+    }
+
+    pub fn get_obj_pos(&self, e: &Entity) -> Option<(Vec2, MapPos)> {
+        self.get_obj(e).map(|obj| (obj.pos, obj.map_pos))
+    }
+
+    pub fn update_obj(&mut self, e: &Entity, new_pos: Vec2, new_direction: Vec2) {
+        let Some((old_pos, old_map_pos)) = self.get_obj_pos(e) else {
+            error!("Cannot find GameObj {}", e);
+            return;
+        };
+
+        if new_pos != old_pos {
+            let new_map_pos = self.get_map_pos(&new_pos);
+            if new_map_pos != old_map_pos {
+                self.map[old_map_pos.row][old_map_pos.col].remove(&e);
+                self.map[new_map_pos.row][new_map_pos.col].insert(e.clone());
+            }
+        }
+
+        let obj = self.entities.get_mut(&e).unwrap();
+        obj.pos = new_pos;
+        obj.direction = new_direction;
+    }
+
     fn add_objs(
         &mut self,
         game_objs: &[GameMapObjConfig],
@@ -128,11 +156,8 @@ impl GameMap {
         commands: &mut Commands,
     ) {
         for map_obj_config in game_objs {
-            if let Some(config_index) = game_lib
-                .game_obj_config_map
-                .get(&map_obj_config.config_name)
-            {
-                let obj_config = game_lib.get_obj_config(*config_index);
+            if let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) {
+                let obj_config = game_lib.get_obj_config(config_index);
                 let pos = arr_to_vec2(&map_obj_config.pos);
 
                 if !self.is_inside(&pos, obj_config.collide_span()) {
@@ -142,15 +167,16 @@ impl GameMap {
 
                 let map_pos = self.get_map_pos(&pos);
 
-                if let Some(obj) = GameObj::new(
-                    *config_index,
+                if let Some((obj, entity)) = GameObj::new(
+                    config_index,
                     pos,
                     map_pos,
                     map_obj_config.direction,
                     game_lib,
                     commands,
                 ) {
-                    self.map[map_pos.row][map_pos.col].push(obj);
+                    self.map[map_pos.row][map_pos.col].insert(entity);
+                    self.entities.insert(entity, obj);
                 }
             }
         }

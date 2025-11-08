@@ -99,6 +99,10 @@ impl GameLib {
         &self.config.game_obj_configs[config_index]
     }
 
+    pub fn get_obj_config_index(&self, name: &String) -> Option<usize> {
+        self.game_obj_config_map.get(name).copied()
+    }
+
     fn load_images(
         image_files: &HashMap<String, String>,
         asset_server: &AssetServer,

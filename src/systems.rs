@@ -42,15 +42,42 @@ pub fn process_input(
     keys: Res<ButtonInput<KeyCode>>,
     game_lib: Res<GameLib>,
     mut commands: Commands,
-    mut player: Single<(Entity, &mut Transform, &mut Movable, &GameObjInfo), With<PlayerComponent>>,
+    mut player: Single<(Entity, &mut Transform), With<PlayerComponent>>,
     mut map: ResMut<GameMap>,
     time: Res<Time>,
 ) {
-    if keys.just_pressed(KeyCode::ArrowRight) {
-        move_player(Direction::Right, game_lib.as_ref(), player.as_mut())
-    } else if keys.just_pressed(KeyCode::ArrowLeft) {
-    } else if keys.just_pressed(KeyCode::ArrowUp) {
-    } else if keys.just_pressed(KeyCode::ArrowDown) {
+    if keys.just_pressed(KeyCode::ArrowRight) || keys.pressed(KeyCode::ArrowRight) {
+        move_player(
+            Direction::Right,
+            game_lib.as_ref(),
+            &mut player,
+            map.as_mut(),
+            time.as_ref(),
+        )
+    } else if keys.just_pressed(KeyCode::ArrowLeft) || keys.pressed(KeyCode::ArrowLeft) {
+        move_player(
+            Direction::Left,
+            game_lib.as_ref(),
+            &mut player,
+            map.as_mut(),
+            time.as_ref(),
+        )
+    } else if keys.just_pressed(KeyCode::ArrowUp) || keys.pressed(KeyCode::ArrowUp) {
+        move_player(
+            Direction::Up,
+            game_lib.as_ref(),
+            &mut player,
+            map.as_mut(),
+            time.as_ref(),
+        )
+    } else if keys.just_pressed(KeyCode::ArrowDown) || keys.pressed(KeyCode::ArrowDown) {
+        move_player(
+            Direction::Down,
+            game_lib.as_ref(),
+            &mut player,
+            map.as_mut(),
+            time.as_ref(),
+        )
     }
 }
 
@@ -101,37 +128,36 @@ fn load_map<P: AsRef<Path>>(
 fn move_player(
     d: Direction,
     game_lib: &GameLib,
-    player: &mut Single<
-        (Entity, &mut Transform, &mut Movable, &GameObjInfo),
-        With<PlayerComponent>,
-    >,
+    player: &mut Single<(Entity, &mut Transform), With<PlayerComponent>>,
     map: &mut GameMap,
     time: &Time,
 ) {
     let new_direction = d.into();
-    let obj_config = &game_lib.config.game_obj_configs[player.3.config_index];
-    if player.2.direction != new_direction {
+    let Some(obj) = map.get_obj(&player.0) else {
+        error!("Failed to find player");
+        return;
+    };
+    let mut new_pos = obj.pos;
+    let obj_config = game_lib.get_obj_config(obj.config_index);
+
+    if obj.direction != new_direction {
         player.1.rotation = get_rotation(new_direction);
-        player.2.direction = new_direction;
     } else {
         let velocity = new_direction * obj_config.speed();
         let (_, time_delta) = check_collide_bounds(
-            player.3.pos,
+            obj.pos,
             velocity,
             obj_config.collide_span(),
             time.delta_secs(),
             map.width,
             map.height,
         );
-        let delta = velocity * time_delta;
-        let new_pos = player.3.pos + delta;
-
-        if new_map_pos != player.3.map_pos {
-
-        }
-
+        new_pos = obj.pos + velocity * time_delta;
         let new_screen_pos = game_lib.get_screen_pos(new_pos);
+
         player.1.translation.x = new_screen_pos.x;
         player.1.translation.y = new_screen_pos.y;
     }
+
+    map.update_obj(&player.0, new_pos, new_direction);
 }
