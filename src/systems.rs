@@ -143,15 +143,23 @@ fn move_player(
     if obj.direction != new_direction {
         player.1.rotation = get_rotation(new_direction);
     } else {
-        let velocity = new_direction * obj_config.speed();
+        let velocity = new_direction * obj_config.speed;
         let (_, time_delta) = check_collide_bounds(
-            obj.pos,
-            velocity,
-            obj_config.collide_span(),
+            &obj.pos,
+            &velocity,
+            obj_config.collide_span,
             time.delta_secs(),
             map.width,
             map.height,
         );
+
+        let (start_map_pos, end_map_pos) =
+            map.get_collide_region(&obj.pos, &velocity, obj_config.collide_span, time_delta);
+
+        for row in start_map_pos.row..=end_map_pos.row {
+            for col in start_map_pos.col..=end_map_pos.col {}
+        }
+
         new_pos = obj.pos + velocity * time_delta;
         let new_screen_pos = game_lib.get_screen_pos(new_pos);
 

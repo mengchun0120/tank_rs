@@ -68,8 +68,8 @@ pub fn get_rotation(d: Vec2) -> Quat {
 }
 
 pub fn check_collide_bounds(
-    pos: Vec2,
-    velocity: Vec2,
+    pos: &Vec2,
+    velocity: &Vec2,
     collide_span: f32,
     time_delta: f32,
     width: f32,
@@ -94,6 +94,83 @@ pub fn check_collide_bounds(
     let time_delta_min = time_delta_x.min(time_delta_y);
     if time_delta_min < time_delta {
         (true, time_delta_min)
+    } else {
+        (false, time_delta)
+    }
+}
+
+pub fn check_collide_nonpass(
+    pos1: &Vec2,
+    velocity: &Vec2,
+    collide_span1: f32,
+    pos2: &Vec2,
+    collide_span2: f32,
+    time_delta: f32,
+) -> (bool, f32) {
+    let (left1, right1) = (pos1.x - collide_span1, pos1.x + collide_span1);
+    let (left2, right2) = (pos2.x - collide_span2, pos2.x + collide_span2);
+
+    let time_delta_x = if right1 <= left2 {
+        if velocity.x <= 0.0 {
+            return (false, time_delta);
+        } else {
+            (left2 - right1) / velocity.x
+        }
+    } else if left1 >= right2 {
+        if velocity.x >= 0.0 {
+            return (false, time_delta);
+        } else {
+            (left1 - right2) / (-velocity.x)
+        }
+    } else {
+        0.0
+    };
+
+    let (bottom1, top1) = (pos1.y - collide_span1, pos1.y + collide_span1);
+    let (bottom2, top2) = (pos2.y - collide_span2, pos2.y + collide_span2);
+
+    let time_delta_y = if top1 <= bottom2 {
+        if velocity.y <= 0.0 {
+            return (false, time_delta);
+        } else {
+            (bottom2 - top1) / velocity.y
+        }
+    } else if bottom1 >= top2 {
+        if velocity.y >= 0.0 {
+            return (false, time_delta);
+        } else {
+            (bottom1 - top2) / (-velocity.y)
+        }
+    } else {
+        0.0
+    };
+
+    if time_delta_x < time_delta_y {
+        if time_delta_y < time_delta {
+            (false, time_delta)
+        } else {
+            let new_left1 = left1 + velocity.x * time_delta;
+            let new_right1 = right1 + velocity.x * time_delta;
+            if new_right1 < left2 || new_left1 > right2 {
+                (false, time_delta)
+            } else {
+                (true, time_delta_y)
+            }
+        }
+    } else if time_delta_x > time_delta_y {
+        if time_delta_x < time_delta {
+            (false, time_delta)
+        } else {
+            let new_bottom1 = bottom1 + velocity.y * time_delta;
+            let new_top1 = top1 + velocity.y * time_delta;
+            if new_top1 < bottom2 || new_bottom1 > top2 {
+                (false, time_delta)
+            } else {
+                (true, time_delta_x)
+            }
+        }
+    } else if time_delta_x < time_delta {
+        (true, time_delta_x)
     } else {
         (false, time_delta)
     }

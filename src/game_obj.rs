@@ -18,12 +18,6 @@ pub struct AIComponent;
 #[derive(Component)]
 pub struct PlayerComponent;
 
-#[derive(Component, Clone, Copy, Eq, PartialEq)]
-pub struct MapPos {
-    pub row: usize,
-    pub col: usize,
-}
-
 impl GameObj {
     pub fn new(
         config_index: usize,

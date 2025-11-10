@@ -22,8 +22,9 @@ pub struct GameObjConfig {
     pub z: f32,
     pub obj_type: GameObjType,
     pub side: GameObjSide,
-    speed: Option<f32>,
-    collide_span: Option<f32>,
+    pub pass_through: bool,
+    pub speed: f32,
+    pub collide_span: f32,
 }
 
 #[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
@@ -124,17 +125,5 @@ impl GameLib {
         }
 
         result
-    }
-}
-
-impl GameObjConfig {
-    #[inline]
-    pub fn speed(&self) -> f32 {
-        self.speed.map_or(0.0, |s| s)
-    }
-
-    #[inline]
-    pub fn collide_span(&self) -> f32 {
-        self.collide_span.map_or(0.0, |c| c)
     }
 }
