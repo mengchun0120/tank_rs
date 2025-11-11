@@ -22,7 +22,6 @@ pub struct GameObjConfig {
     pub z: f32,
     pub obj_type: GameObjType,
     pub side: GameObjSide,
-    pub pass_through: bool,
     pub speed: f32,
     pub collide_span: f32,
 }

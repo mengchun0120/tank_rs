@@ -40,7 +40,6 @@ pub struct GameMap {
     map: Vec<Vec<HashSet<Entity>>>,
     entities: HashMap<Entity, GameObj>,
     max_collide_span: f32,
-    collide_result: Vec<Entity>,
 }
 
 impl GameMap {
@@ -52,7 +51,6 @@ impl GameMap {
             map: vec![vec![HashSet::new(); col_count]; row_count],
             entities: HashMap::new(),
             max_collide_span: 0.0,
-            collide_result: Vec::new(),
         }
     }
 
@@ -139,29 +137,92 @@ impl GameMap {
         self.entities.get(e)
     }
 
-    pub fn get_obj_pos(&self, e: &Entity) -> Option<(Vec2, MapPos)> {
-        self.get_obj(e).map(|obj| (obj.pos, obj.map_pos))
-    }
-
-    pub fn check_collide(
+    pub fn move_obj(
         &mut self,
         entity: Entity,
-        direction: &Vec2,
+        direction: Vec2,
         game_lib: &GameLib,
         time_delta: f32,
-    ) -> Option<(bool, f32)> {
+    ) -> Option<Vec2> {
         let Some((pos, config_index)) = self
             .entities
             .get(&entity)
             .map(|obj| (obj.pos, obj.config_index))
         else {
+            warn!("Cannot find entity {entity} in map");
             return None;
         };
-        let obj_config = game_lib.get_obj_config(config_index);
-        let velocity = direction * obj_config.speed;
-        let collide_span = obj_config.collide_span;
 
-        let (collide, time_delta) = check_collide_bounds(
+        let obj_config = game_lib.get_obj_config(config_index);
+        if obj_config.speed == 0.0 {
+            return None;
+        }
+
+        let velocity = obj_config.speed * direction;
+        let (_, time_delta) = self.check_collide(
+            &entity,
+            &pos,
+            &velocity,
+            obj_config.collide_span,
+            game_lib,
+            time_delta,
+        );
+
+        let new_pos = pos + velocity * time_delta;
+        self.update_pos_direction(&entity, new_pos, direction);
+
+        Some(new_pos)
+    }
+
+    fn add_objs(
+        &mut self,
+        game_objs: &[GameMapObjConfig],
+        game_lib: &GameLib,
+        commands: &mut Commands,
+    ) {
+        for map_obj_config in game_objs {
+            let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name)
+            else {
+                continue;
+            };
+            let obj_config = game_lib.get_obj_config(config_index);
+            let pos = arr_to_vec2(&map_obj_config.pos);
+
+            if !self.is_inside(&pos, obj_config.collide_span) {
+                error!("Position {:?} is outside map", pos);
+                continue;
+            }
+
+            let map_pos = self.get_map_pos(&pos);
+
+            if let Some((obj, entity)) = GameObj::new(
+                config_index,
+                pos,
+                map_pos,
+                map_obj_config.direction,
+                game_lib,
+                commands,
+            ) {
+                self.map[map_pos.row][map_pos.col].insert(entity);
+                self.entities.insert(entity, obj);
+
+                if self.max_collide_span < obj_config.collide_span {
+                    self.max_collide_span = obj_config.collide_span;
+                }
+            }
+        }
+    }
+
+    pub fn check_collide(
+        &mut self,
+        entity: &Entity,
+        pos: &Vec2,
+        velocity: &Vec2,
+        collide_span: f32,
+        game_lib: &GameLib,
+        time_delta: f32,
+    ) -> (bool, f32) {
+        let (collide_bounds, time_delta) = check_obj_collide_bounds(
             &pos,
             &velocity,
             collide_span,
@@ -170,15 +231,13 @@ impl GameMap {
             self.height,
         );
 
-        self.collide_result.clear();
-
         let (start_map_pos, end_map_pos) =
-            self.get_collide_region(&pos, &velocity, collide_span, time_delta);
+            self.get_collide_region(pos, velocity, collide_span, time_delta);
 
-        let (collide, time_delta) = self.check_collide_nonpass(
-            &entity,
-            &pos,
-            &velocity,
+        let (collide_obj, time_delta) = self.check_collide_nonpass(
+            entity,
+            pos,
+            velocity,
             collide_span,
             &start_map_pos,
             &end_map_pos,
@@ -186,26 +245,7 @@ impl GameMap {
             game_lib,
         );
 
-        todo!()
-    }
-
-    pub fn update_obj(&mut self, e: &Entity, new_pos: Vec2, new_direction: Vec2) {
-        let Some((old_pos, old_map_pos)) = self.get_obj_pos(e) else {
-            error!("Cannot find GameObj {}", e);
-            return;
-        };
-
-        if new_pos != old_pos {
-            let new_map_pos = self.get_map_pos(&new_pos);
-            if new_map_pos != old_map_pos {
-                self.map[old_map_pos.row][old_map_pos.col].remove(&e);
-                self.map[new_map_pos.row][new_map_pos.col].insert(e.clone());
-            }
-        }
-
-        let obj = self.entities.get_mut(&e).unwrap();
-        obj.pos = new_pos;
-        obj.direction = new_direction;
+        (collide_bounds || collide_obj, time_delta)
     }
 
     fn check_collide_nonpass(
@@ -219,19 +259,44 @@ impl GameMap {
         time_delta: f32,
         game_lib: &GameLib,
     ) -> (bool, f32) {
+        let mut collide = false;
+        let mut time_delta = time_delta;
+
         for row in start_map_pos.row..=end_map_pos.row {
             for col in start_map_pos.col..=end_map_pos.col {
                 for e in self.map[row][col].iter() {
-                    if *e == *entity {
+                    if e == entity {
                         continue;
                     }
 
+                    let Some((pos2, config_index)) =
+                        self.get_obj(e).map(|obj| (obj.pos, obj.config_index))
+                    else {
+                        warn!("Cannot find entity {e} in map");
+                        continue;
+                    };
+                    let obj_config = game_lib.get_obj_config(config_index);
 
+                    let (collide1, time_delta1) = check_obj_collide_nonpass(
+                        pos,
+                        velocity,
+                        collide_span,
+                        &pos2,
+                        obj_config.collide_span,
+                        time_delta,
+                    );
+
+                    if collide1 {
+                        collide = true;
+                        if time_delta1 < time_delta {
+                            time_delta = time_delta1;
+                        }
+                    }
                 }
             }
         }
 
-        todo!()
+        (collide, time_delta)
     }
 
     fn get_collide_region(
@@ -260,41 +325,21 @@ impl GameMap {
         (start_map_pos, end_map_pos)
     }
 
-    fn add_objs(
-        &mut self,
-        game_objs: &[GameMapObjConfig],
-        game_lib: &GameLib,
-        commands: &mut Commands,
-    ) {
-        for map_obj_config in game_objs {
-            if let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) {
-                let obj_config = game_lib.get_obj_config(config_index);
-                let pos = arr_to_vec2(&map_obj_config.pos);
+    pub fn update_pos_direction(&mut self, e: &Entity, new_pos: Vec2, new_direction: Vec2) {
+        let Some(old_map_pos) = self.entities.get(e).map(|obj| obj.map_pos) else {
+            error!("Cannot find obj {e} in map");
+            return;
+        };
 
-                if !self.is_inside(&pos, obj_config.collide_span) {
-                    error!("Position {:?} is outside map", pos);
-                    continue;
-                }
-
-                let map_pos = self.get_map_pos(&pos);
-
-                if let Some((obj, entity)) = GameObj::new(
-                    config_index,
-                    pos,
-                    map_pos,
-                    map_obj_config.direction,
-                    game_lib,
-                    commands,
-                ) {
-                    self.map[map_pos.row][map_pos.col].insert(entity);
-                    self.entities.insert(entity, obj);
-
-                    if self.max_collide_span < obj_config.collide_span {
-                        self.max_collide_span = obj_config.collide_span;
-                    }
-                }
-            }
+        let new_map_pos = self.get_map_pos(&new_pos);
+        if new_map_pos != old_map_pos {
+            self.map[old_map_pos.row][old_map_pos.col].remove(&e);
+            self.map[new_map_pos.row][new_map_pos.col].insert(e.clone());
         }
+
+        let obj = self.entities.get_mut(&e).unwrap();
+        obj.pos = new_pos;
+        obj.direction = new_direction;
     }
 }
 

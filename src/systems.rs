@@ -41,7 +41,6 @@ pub fn setup_game(
 pub fn process_input(
     keys: Res<ButtonInput<KeyCode>>,
     game_lib: Res<GameLib>,
-    mut commands: Commands,
     mut player: Single<(Entity, &mut Transform), With<PlayerComponent>>,
     mut map: ResMut<GameMap>,
     time: Res<Time>,
@@ -132,40 +131,22 @@ fn move_player(
     map: &mut GameMap,
     time: &Time,
 ) {
-    let new_direction = d.into();
-    let Some(obj) = map.get_obj(&player.0) else {
-        error!("Failed to find player");
+    let new_direction: Vec2 = d.into();
+    let Some(old_direction) = map.get_obj(&player.0).map(|obj| obj.direction) else {
+        warn!("Cannot find player in map");
         return;
     };
-    let mut new_pos = obj.pos;
-    let obj_config = game_lib.get_obj_config(obj.config_index);
 
-    if obj.direction != new_direction {
+    if new_direction != old_direction {
         player.1.rotation = get_rotation(new_direction);
     } else {
-        let velocity = new_direction * obj_config.speed;
-        let (_, time_delta) = check_collide_bounds(
-            &obj.pos,
-            &velocity,
-            obj_config.collide_span,
-            time.delta_secs(),
-            map.width,
-            map.height,
-        );
+        let Some(new_pos) = map.move_obj(player.0, new_direction, game_lib, time.delta_secs())
+        else {
+            return;
+        };
 
-        let (start_map_pos, end_map_pos) =
-            map.get_collide_region(&obj.pos, &velocity, obj_config.collide_span, time_delta);
-
-        for row in start_map_pos.row..=end_map_pos.row {
-            for col in start_map_pos.col..=end_map_pos.col {}
-        }
-
-        new_pos = obj.pos + velocity * time_delta;
         let new_screen_pos = game_lib.get_screen_pos(new_pos);
-
         player.1.translation.x = new_screen_pos.x;
         player.1.translation.y = new_screen_pos.y;
     }
-
-    map.update_obj(&player.0, new_pos, new_direction);
 }

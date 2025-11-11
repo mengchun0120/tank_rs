@@ -67,7 +67,7 @@ pub fn get_rotation(d: Vec2) -> Quat {
     Quat::from_rotation_arc_2d(from, d)
 }
 
-pub fn check_collide_bounds(
+pub fn check_obj_collide_bounds(
     pos: &Vec2,
     velocity: &Vec2,
     collide_span: f32,
@@ -99,7 +99,7 @@ pub fn check_collide_bounds(
     }
 }
 
-pub fn check_collide_nonpass(
+pub fn check_obj_collide_nonpass(
     pos1: &Vec2,
     velocity: &Vec2,
     collide_span1: f32,
@@ -149,8 +149,8 @@ pub fn check_collide_nonpass(
         if time_delta_y < time_delta {
             (false, time_delta)
         } else {
-            let new_left1 = left1 + velocity.x * time_delta;
-            let new_right1 = right1 + velocity.x * time_delta;
+            let new_left1 = left1 + velocity.x * time_delta_y;
+            let new_right1 = right1 + velocity.x * time_delta_y;
             if new_right1 < left2 || new_left1 > right2 {
                 (false, time_delta)
             } else {
@@ -161,8 +161,8 @@ pub fn check_collide_nonpass(
         if time_delta_x < time_delta {
             (false, time_delta)
         } else {
-            let new_bottom1 = bottom1 + velocity.y * time_delta;
-            let new_top1 = top1 + velocity.y * time_delta;
+            let new_bottom1 = bottom1 + velocity.y * time_delta_x;
+            let new_top1 = top1 + velocity.y * time_delta_x;
             if new_top1 < bottom2 || new_bottom1 > top2 {
                 (false, time_delta)
             } else {
