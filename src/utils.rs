@@ -69,34 +69,100 @@ pub fn get_rotation(d: Vec2) -> Quat {
 
 pub fn check_obj_collide_bounds(
     pos: &Vec2,
-    velocity: &Vec2,
     collide_span: f32,
-    time_delta: f32,
+    direction: &Vec2,
     width: f32,
     height: f32,
-) -> (bool, f32) {
-    let time_delta_x = if velocity.x > 0.0 {
-        (width - pos.x - collide_span) / velocity.x
-    } else if velocity.x < 0.0 {
-        (pos.x - collide_span) / (-velocity.x)
+) -> (bool, Vec2) {
+    let left = pos.x - collide_span;
+    let right = pos.x + collide_span;
+    let dx = if left < 0.0 {
+        -left
+    } else if right > width {
+        width - right
     } else {
-        f32::INFINITY
+        0.0
     };
 
-    let time_delta_y = if velocity.y > 0.0 {
-        (height - pos.y - collide_span) / velocity.y
-    } else if velocity.y < 0.0 {
-        (pos.y - collide_span) / (-velocity.y)
+    let bottom = pos.y - collide_span;
+    let top = pos.y + collide_span;
+    let dy = if bottom < 0.0 {
+        -bottom
+    } else if top > height {
+        height - top
     } else {
-        f32::INFINITY
+        0.0
     };
 
-    let time_delta_min = time_delta_x.min(time_delta_y);
-    if time_delta_min < time_delta {
-        (true, time_delta_min)
+    let mut corrected_pos = pos.clone();
+    let min_x = collide_span;
+    let max_x = width - collide_span;
+    let min_y = collide_span;
+    let max_y = height - collide_span;
+
+    let collide = if dx == 0.0 && dy == 0.0 {
+        false
     } else {
-        (false, time_delta)
+        if dx.signum() * direction.x.signum() < 0.0 && dy.signum() * direction.y.signum() < 0.0 {
+            if (dx * direction.y).abs() < (dy * direction.x).abs() {
+                corrected_pos.x = corrected_pos.x.clamp(min_x, max_x);
+                corrected_pos.y += dy.signum() * (dx * direction.y / direction.x).abs();
+                corrected_pos.y = corrected_pos.y.clamp(min_y, max_y);
+            } else {
+                corrected_pos.y = corrected_pos.y.clamp(min_y, max_y);
+                corrected_pos.x += dx.signum() * (dy * direction.x / direction.y).abs();
+                corrected_pos.x = corrected_pos.x.clamp(min_y, max_y);
+            }
+        } else {
+            corrected_pos.x = corrected_pos.x.clamp(min_x, max_x);
+            corrected_pos.y = corrected_pos.y.clamp(min_y, max_y);
+        }
+        true
+    };
+
+    (collide, corrected_pos)
+}
+
+pub fn check_obj_collide_nonpass1(
+    pos1: &Vec2,
+    collide_span1: f32,
+    direction: &Vec2,
+    pos2: &Vec2,
+    collide_span2: f32,
+) -> (bool, Vec2) {
+    let total_span = collide_span1 + collide_span2;
+    let dx = (pos1.x - pos2.x).abs();
+    let dy = (pos1.y - pos2.y).abs();
+    let mut corrected_pos = pos1.clone();
+
+    if dx >= total_span || dy >= total_span {
+        return (false, corrected_pos);
     }
+
+    let cx = total_span - dx;
+    let cy = total_span - dy;
+
+    if cx * direction.y.abs() < cy * direction.x.abs() {
+        corrected_pos.x = if direction.x > 0.0 {
+            pos2.x - total_span
+        } else {
+            pos2.x + total_span
+        };
+        if direction.y != 0.0 {
+            corrected_pos.y -= direction.y.signum() * cx * direction.y.abs() / direction.x;
+        }
+    } else {
+        corrected_pos.y = if direction.y > 0.0 {
+            pos2.y - total_span
+        } else {
+            pos2.y + total_span
+        };
+        if direction.x != 0.0 {
+            corrected_pos.x -= direction.x.signum() * cy * direction.x.abs() / direction.y;
+        }
+    }
+
+    (true, corrected_pos)
 }
 
 pub fn check_obj_collide_nonpass(
@@ -144,6 +210,8 @@ pub fn check_obj_collide_nonpass(
     } else {
         0.0
     };
+
+    info!("left1={left1} right1={right1} left2={left2} right2={right2} time_delta={time_delta} velocity={velocity} time_delta_x={time_delta_x} time_delta_y={time_delta_y}");
 
     if time_delta_x < time_delta_y {
         if time_delta_y < time_delta {

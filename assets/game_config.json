@@ -24,7 +24,8 @@
             "z": -1.0,
             "obj_type": "Tile",
             "side": "Neutral",
-            "collide_span": 20.0
+            "collide_span": 20.0,
+            "speed": 0.0
         },
         {
             "name": "ai_tank",

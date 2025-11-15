@@ -139,8 +139,9 @@ fn move_player(
 
     if new_direction != old_direction {
         player.1.rotation = get_rotation(new_direction);
+        map.change_direction(player.0, new_direction);
     } else {
-        let Some(new_pos) = map.move_obj(player.0, new_direction, game_lib, time.delta_secs())
+        let Some(new_pos) = map.move_obj(player.0, game_lib, time.delta_secs())
         else {
             return;
         };

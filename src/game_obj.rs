@@ -4,7 +4,7 @@ use crate::utils::*;
 
 use bevy::prelude::*;
 
-#[derive(Clone, Resource)]
+#[derive(Clone, Resource, Copy)]
 pub struct GameObj {
     pub config_index: usize,
     pub pos: Vec2,

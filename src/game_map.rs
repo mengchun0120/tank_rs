@@ -133,45 +133,55 @@ impl GameMap {
     }
 
     #[inline]
-    pub fn get_obj(&self, e: &Entity) -> Option<&GameObj> {
-        self.entities.get(e)
+    pub fn get_obj(&self, entity: &Entity) -> Option<&GameObj> {
+        self.entities.get(entity)
+    }
+
+    #[inline]
+    pub fn get_obj_mut(&mut self, entity: &Entity) -> Option<&mut GameObj> {
+        self.entities.get_mut(entity)
+    }
+
+    #[inline]
+    pub fn get_obj_clone(&self, entity: &Entity) -> Option<GameObj> {
+        self.get_obj(entity).map(|obj| obj.clone())
     }
 
     pub fn move_obj(
         &mut self,
         entity: Entity,
-        direction: Vec2,
         game_lib: &GameLib,
         time_delta: f32,
     ) -> Option<Vec2> {
-        let Some((pos, config_index)) = self
-            .entities
-            .get(&entity)
-            .map(|obj| (obj.pos, obj.config_index))
-        else {
+        let Some(obj) = self.get_obj_clone(&entity) else {
             warn!("Cannot find entity {entity} in map");
             return None;
         };
 
-        let obj_config = game_lib.get_obj_config(config_index);
+        let obj_config = game_lib.get_obj_config(obj.config_index);
         if obj_config.speed == 0.0 {
             return None;
         }
 
-        let velocity = obj_config.speed * direction;
-        let (_, time_delta) = self.check_collide(
+        let new_pos = obj_config.speed * obj.direction * time_delta + obj.pos;
+        let (_, new_pos) = self.check_collide(
             &entity,
-            &pos,
-            &velocity,
+            &new_pos,
             obj_config.collide_span,
+            &obj.direction,
             game_lib,
-            time_delta,
         );
 
-        let new_pos = pos + velocity * time_delta;
-        self.update_pos_direction(&entity, new_pos, direction);
+        self.update_pos(&entity, new_pos);
 
         Some(new_pos)
+    }
+
+    pub fn change_direction(&mut self, entity: Entity, new_direction: Vec2) {
+        let Some(obj) = self.get_obj_mut(&entity) else {
+            return;
+        };
+        obj.direction = new_direction.clone();
     }
 
     fn add_objs(
@@ -217,35 +227,36 @@ impl GameMap {
         &mut self,
         entity: &Entity,
         pos: &Vec2,
-        velocity: &Vec2,
         collide_span: f32,
+        direction: &Vec2,
         game_lib: &GameLib,
-        time_delta: f32,
-    ) -> (bool, f32) {
-        let (collide_bounds, time_delta) = check_obj_collide_bounds(
-            &pos,
-            &velocity,
+    ) -> (bool, Vec2) {
+
+        let (collide, corrected_pos) = check_obj_collide_bounds(
+            pos,
             collide_span,
-            time_delta,
+            direction,
             self.width,
             self.height,
         );
 
-        let (start_map_pos, end_map_pos) =
-            self.get_collide_region(pos, velocity, collide_span, time_delta);
+        (collide, corrected_pos)
 
-        let (collide_obj, time_delta) = self.check_collide_nonpass(
-            entity,
-            pos,
-            velocity,
-            collide_span,
-            &start_map_pos,
-            &end_map_pos,
-            time_delta,
-            game_lib,
-        );
+        // let (start_map_pos, end_map_pos) =
+        //     self.get_collide_region(pos, velocity, collide_span, time_delta);
 
-        (collide_bounds || collide_obj, time_delta)
+        // let (collide_obj, time_delta) = self.check_collide_nonpass(
+        //     entity,
+        //     pos,
+        //     velocity,
+        //     collide_span,
+        //     &start_map_pos,
+        //     &end_map_pos,
+        //     time_delta,
+        //     game_lib,
+        // );
+
+        // (collide_bounds || collide_obj, time_delta)
     }
 
     fn check_collide_nonpass(
@@ -270,7 +281,7 @@ impl GameMap {
                     }
 
                     let Some((pos2, config_index)) =
-                        self.get_obj(e).map(|obj| (obj.pos, obj.config_index))
+                        self.entities.get(e).map(|obj| (obj.pos, obj.config_index))
                     else {
                         warn!("Cannot find entity {e} in map");
                         continue;
@@ -325,7 +336,7 @@ impl GameMap {
         (start_map_pos, end_map_pos)
     }
 
-    pub fn update_pos_direction(&mut self, e: &Entity, new_pos: Vec2, new_direction: Vec2) {
+    pub fn update_pos(&mut self, e: &Entity, new_pos: Vec2) {
         let Some(old_map_pos) = self.entities.get(e).map(|obj| obj.map_pos) else {
             error!("Cannot find obj {e} in map");
             return;
@@ -339,7 +350,6 @@ impl GameMap {
 
         let obj = self.entities.get_mut(&e).unwrap();
         obj.pos = new_pos;
-        obj.direction = new_direction;
     }
 }
 
