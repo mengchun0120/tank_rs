@@ -24,6 +24,8 @@ pub struct GameObjConfig {
     pub side: GameObjSide,
     pub speed: f32,
     pub collide_span: f32,
+    pub shoot_config: Option<ShootConfig>,
+    pub damage_config: Option<DamageConfig>,
 }
 
 #[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
@@ -39,6 +41,18 @@ pub enum GameObjSide {
     Player,
     AI,
     Neutral,
+}
+
+#[derive(Debug, Resource, Deserialize)]
+pub struct ShootConfig {
+    pub missile: String,
+    pub shoot_duration: f32,
+}
+
+#[derive(Debug, Resource, Deserialize)]
+pub struct DamageConfig {
+    pub damage: f32,
+    pub explode_span: f32,
 }
 
 #[derive(Debug, Resource)]

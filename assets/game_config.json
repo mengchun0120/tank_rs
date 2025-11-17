@@ -4,7 +4,9 @@
     "image_files": {
         "steel_tile": "steel_tile.png",
         "ai_tank": "ai_tank.png",
-        "player_tank": "player_tank.png"
+        "player_tank": "player_tank.png",
+        "green_missile": "green_missile.png",
+        "orange_missile": "orange_missile.png"
     },
     "game_obj_configs": [
         {
@@ -15,7 +17,11 @@
             "obj_type": "Tank",
             "side": "Player",
             "collide_span": 30.0,
-            "speed": 80.0
+            "speed": 60.0,
+            "shoot_config": {
+                "missile": "green_missile",
+                "shoot_duration": 0.1
+            }
         },
         {
             "name": "steel_tile",
@@ -35,7 +41,39 @@
             "obj_type": "Tank",
             "side": "AI",
             "collide_span": 30.0,
-            "speed": 80.0
+            "speed": 80.0,
+            "shoot_config": {
+                "missile": "orange_missle",
+                "shoot_duration": 1.0
+            }
+        },
+        {
+            "name": "green_missile",
+            "image": "green_missile",
+            "size": [10.0, 10.0],
+            "z": 1.0,
+            "obj_type": "Missile",
+            "side": "Player",
+            "collide_span": 5.0,
+            "speed": 120.0,
+            "damage_config": {
+                "damage": 20.0,
+                "explode_span": 40.0
+            }
+        },
+        {
+            "name": "orange_missile",
+            "image": "orange_missile",
+            "size": [10.0, 10.0],
+            "z": 1.0,
+            "obj_type": "Missile",
+            "side": "AI",
+            "collide_span": 5.0,
+            "speed": 80.0,
+            "damage_config": {
+                "damage": 10.0,
+                "explode_span": 30.0
+            }
         }
     ]
 }

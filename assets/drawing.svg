@@ -28,8 +28,8 @@
      inkscape:document-units="mm"
      showgrid="true"
      inkscape:zoom="1.5465208"
-     inkscape:cx="106.36779"
-     inkscape:cy="451.33567"
+     inkscape:cx="190.42744"
+     inkscape:cy="283.86298"
      inkscape:window-width="1920"
      inkscape:window-height="1112"
      inkscape:window-x="-8"
@@ -322,5 +322,25 @@
          x="50.529015"
          y="155.36217" />
     </g>
+    <ellipse
+       style="fill:#6cff00;stroke:#00a000;stroke-width:0.424752;fill-opacity:1;stroke-opacity:1"
+       id="path1"
+       cx="100.2546"
+       cy="75.190964"
+       rx="4.8318629"
+       ry="5.0884876"
+       inkscape:export-filename="green_missile.png"
+       inkscape:export-xdpi="83.143616"
+       inkscape:export-ydpi="83.143616" />
+    <ellipse
+       style="fill:#ffaa00;fill-opacity:1;stroke:#986200;stroke-width:0.424752;stroke-opacity:1"
+       id="path1-8"
+       cx="110.61299"
+       cy="106.90086"
+       rx="4.8318629"
+       ry="5.0884876"
+       inkscape:export-filename="orange_missile.png"
+       inkscape:export-xdpi="83.143616"
+       inkscape:export-ydpi="83.143616" />
   </g>
 </svg>
