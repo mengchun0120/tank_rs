@@ -163,12 +163,13 @@ impl GameMap {
             return None;
         }
 
-        let new_pos = obj_config.speed * obj.direction * time_delta + obj.pos;
         let (_, new_pos) = self.check_collide(
             &entity,
-            &new_pos,
+            &obj.pos,
             obj_config.collide_span,
             &obj.direction,
+            obj_config.speed,
+            time_delta,
             game_lib,
         );
 
@@ -229,49 +230,42 @@ impl GameMap {
         pos: &Vec2,
         collide_span: f32,
         direction: &Vec2,
+        speed: f32,
+        time_delta: f32,
         game_lib: &GameLib,
     ) -> (bool, Vec2) {
+        let pos = pos + direction * speed * time_delta;
 
-        let (collide, corrected_pos) = check_obj_collide_bounds(
-            pos,
-            collide_span,
+        let (collide_bounds, pos) =
+            check_obj_collide_bounds(&pos, collide_span, direction, self.width, self.height);
+
+        let (collide_obj, pos) = self.check_collide_nonpass(
+            entity,
+            &pos,
             direction,
-            self.width,
-            self.height,
+            speed,
+            collide_span,
+            time_delta,
+            game_lib,
         );
 
-        (collide, corrected_pos)
-
-        // let (start_map_pos, end_map_pos) =
-        //     self.get_collide_region(pos, velocity, collide_span, time_delta);
-
-        // let (collide_obj, time_delta) = self.check_collide_nonpass(
-        //     entity,
-        //     pos,
-        //     velocity,
-        //     collide_span,
-        //     &start_map_pos,
-        //     &end_map_pos,
-        //     time_delta,
-        //     game_lib,
-        // );
-
-        // (collide_bounds || collide_obj, time_delta)
+        (collide_bounds || collide_obj, pos)
     }
 
     fn check_collide_nonpass(
         &mut self,
         entity: &Entity,
         pos: &Vec2,
-        velocity: &Vec2,
+        direction: &Vec2,
+        speed: f32,
         collide_span: f32,
-        start_map_pos: &MapPos,
-        end_map_pos: &MapPos,
         time_delta: f32,
         game_lib: &GameLib,
-    ) -> (bool, f32) {
+    ) -> (bool, Vec2) {
         let mut collide = false;
-        let mut time_delta = time_delta;
+        let (start_map_pos, end_map_pos) =
+            self.get_collide_region(pos, direction, speed, collide_span, time_delta);
+        let mut pos = pos.clone();
 
         for row in start_map_pos.row..=end_map_pos.row {
             for col in start_map_pos.col..=end_map_pos.col {
@@ -286,38 +280,37 @@ impl GameMap {
                         warn!("Cannot find entity {e} in map");
                         continue;
                     };
-                    let obj_config = game_lib.get_obj_config(config_index);
+                    let collide_span2 = game_lib.get_obj_config(config_index).collide_span;
 
-                    let (collide1, time_delta1) = check_obj_collide_nonpass(
-                        pos,
-                        velocity,
+                    let (collide1, corrected_pos) = check_obj_collide_nonpass(
+                        &pos,
                         collide_span,
+                        direction,
                         &pos2,
-                        obj_config.collide_span,
-                        time_delta,
+                        collide_span2,
                     );
 
                     if collide1 {
                         collide = true;
-                        if time_delta1 < time_delta {
-                            time_delta = time_delta1;
-                        }
                     }
+
+                    pos = corrected_pos;
                 }
             }
         }
 
-        (collide, time_delta)
+        (collide, pos)
     }
 
     fn get_collide_region(
         &self,
         pos: &Vec2,
-        velocity: &Vec2,
+        direction: &Vec2,
+        speed: f32,
         collide_span: f32,
         time_delta: f32,
     ) -> (MapPos, MapPos) {
-        let end_pos = pos + velocity * time_delta;
+        let end_pos = pos + direction * speed * time_delta;
         let span = collide_span + self.max_collide_span;
         let start_x = pos.x.min(end_pos.x) - span;
         let start_y = pos.y.min(end_pos.y) - span;

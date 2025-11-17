@@ -123,7 +123,7 @@ pub fn check_obj_collide_bounds(
     (collide, corrected_pos)
 }
 
-pub fn check_obj_collide_nonpass1(
+pub fn check_obj_collide_nonpass(
     pos1: &Vec2,
     collide_span1: f32,
     direction: &Vec2,
@@ -165,7 +165,7 @@ pub fn check_obj_collide_nonpass1(
     (true, corrected_pos)
 }
 
-pub fn check_obj_collide_nonpass(
+/*pub fn check_obj_collide_nonpass(
     pos1: &Vec2,
     velocity: &Vec2,
     collide_span1: f32,
@@ -242,4 +242,4 @@ pub fn check_obj_collide_nonpass(
     } else {
         (false, time_delta)
     }
-}
+}*/
