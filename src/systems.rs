@@ -41,7 +41,7 @@ pub fn setup_game(
 pub fn process_input(
     keys: Res<ButtonInput<KeyCode>>,
     game_lib: Res<GameLib>,
-    mut player: Single<(Entity, &mut Transform), With<PlayerComponent>>,
+    mut player: Single<(Entity, &mut Transform, &mut ShootComponent), With<PlayerComponent>>,
     mut map: ResMut<GameMap>,
     time: Res<Time>,
 ) {
@@ -127,19 +127,30 @@ fn load_map<P: AsRef<Path>>(
 fn move_player(
     d: Direction,
     game_lib: &GameLib,
-    player: &mut Single<(Entity, &mut Transform), With<PlayerComponent>>,
+    player: &mut Single<(Entity, &mut Transform, &mut ShootComponent), With<PlayerComponent>>,
     map: &mut GameMap,
     time: &Time,
 ) {
     let new_direction: Vec2 = d.into();
-    let Some(old_direction) = map.get_obj(&player.0).map(|obj| obj.direction) else {
+    let Some((old_pos, old_direction, obj_config)) = map.get_obj(&player.0).map(|obj| {
+        (
+            obj.pos,
+            obj.direction,
+            game_lib.get_obj_config(obj.config_index),
+        )
+    }) else {
         warn!("Cannot find player in map");
         return;
     };
 
     if new_direction != old_direction {
-        player.1.rotation = get_rotation(new_direction);
         map.change_direction(player.0, new_direction);
+        player.1.rotation = get_rotation(new_direction);
+
+        if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
+            let shoot_pos = arr_to_vec2(&shoot_config.shoot_position);
+            player.2.shoot_pos = old_pos + new_direction.rotate(shoot_pos);
+        }
     } else {
         let Some(new_pos) = map.move_obj(player.0, game_lib, time.delta_secs()) else {
             return;

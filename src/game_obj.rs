@@ -18,6 +18,13 @@ pub struct AIComponent;
 #[derive(Component)]
 pub struct PlayerComponent;
 
+#[derive(Component)]
+pub struct ShootComponent {
+    pub timer: Timer,
+    pub shoot_pos: Vec2,
+    pub missile_config_index: usize,
+}
+
 impl GameObj {
     pub fn new(
         config_index: usize,
@@ -42,7 +49,7 @@ impl GameObj {
         Some((obj, entity))
     }
 
-    pub fn create_entity(
+    fn create_entity(
         pos: Vec2,
         direction: Direction,
         obj_config: &GameObjConfig,
@@ -77,6 +84,18 @@ impl GameObj {
             } else if obj_config.side == GameObjSide::Player {
                 entity.insert(PlayerComponent);
             }
+        }
+
+        if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
+            let missile_config_index = game_lib
+                .get_obj_config_index(&shoot_config.missile)
+                .expect(&format!("Cannot find missile {}", shoot_config.missile));
+
+            entity.insert(ShootComponent {
+                timer: Timer::from_seconds(shoot_config.shoot_duration, TimerMode::Repeating),
+                shoot_pos: arr_to_vec2(&shoot_config.shoot_position),
+                missile_config_index,
+            });
         }
 
         Some(entity.id())

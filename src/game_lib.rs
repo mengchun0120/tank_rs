@@ -47,6 +47,7 @@ pub enum GameObjSide {
 pub struct ShootConfig {
     pub missile: String,
     pub shoot_duration: f32,
+    pub shoot_position: [f32; 2],
 }
 
 #[derive(Debug, Resource, Deserialize)]
