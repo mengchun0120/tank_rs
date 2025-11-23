@@ -13,6 +13,12 @@ pub struct GameObj {
 }
 
 #[derive(Component)]
+pub struct TankComponent;
+
+#[derive(Component)]
+pub struct MissileComponent;
+
+#[derive(Component)]
 pub struct AIComponent;
 
 #[derive(Component)]
@@ -62,7 +68,7 @@ impl GameObj {
         };
         let size = arr_to_vec2(&obj_config.size);
         let d: Vec2 = direction.into();
-        let screen_pos = game_lib.get_screen_pos(pos);
+        let screen_pos = game_lib.get_screen_pos(&pos);
 
         let mut entity = commands.spawn((
             Sprite {
@@ -78,12 +84,20 @@ impl GameObj {
             },
         ));
 
-        if obj_config.obj_type == GameObjType::Tank {
-            if obj_config.side == GameObjSide::AI {
-                entity.insert(AIComponent);
-            } else if obj_config.side == GameObjSide::Player {
-                entity.insert(PlayerComponent);
+        match obj_config.obj_type {
+            GameObjType::Tank => {
+                entity.insert(TankComponent);
             }
+            GameObjType::Missile => {
+                entity.insert(MissileComponent);
+            }
+            _ => (),
+        }
+
+        if obj_config.side == GameObjSide::AI {
+            entity.insert(AIComponent);
+        } else if obj_config.side == GameObjSide::Player {
+            entity.insert(PlayerComponent);
         }
 
         if let Some(shoot_config) = obj_config.shoot_config.as_ref() {

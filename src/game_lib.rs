@@ -28,7 +28,7 @@ pub struct GameObjConfig {
     pub damage_config: Option<DamageConfig>,
 }
 
-#[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Resource, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub enum GameObjType {
     Tile,
     Tank,
@@ -36,7 +36,7 @@ pub enum GameObjType {
     Effect,
 }
 
-#[derive(Debug, Resource, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Resource, Deserialize, PartialEq, Eq, Copy, Clone)]
 pub enum GameObjSide {
     Player,
     AI,
@@ -62,6 +62,18 @@ pub struct GameLib {
     pub origin: Vec2,
     pub images: HashMap<String, Handle<Image>>,
     pub game_obj_config_map: HashMap<String, usize>,
+}
+
+impl GameObjType {
+    #[inline]
+    pub fn is_nonpass(&self) -> bool {
+        *self == Self::Tank || *self == Self::Tile
+    }
+
+    #[inline]
+    pub fn is_pass(&self) -> bool {
+        *self == Self::Missile
+    }
 }
 
 impl GameConfig {
@@ -105,7 +117,7 @@ impl GameLib {
     }
 
     #[inline]
-    pub fn get_screen_pos(&self, pos: Vec2) -> Vec2 {
+    pub fn get_screen_pos(&self, pos: &Vec2) -> Vec2 {
         self.origin + pos
     }
 

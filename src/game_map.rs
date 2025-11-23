@@ -152,8 +152,8 @@ impl GameMap {
         entity: Entity,
         game_lib: &GameLib,
         time_delta: f32,
-    ) -> Option<Vec2> {
-        let Some(obj) = self.get_obj_clone(&entity) else {
+    ) -> Option<(bool, Vec2)> {
+        let Some(obj) = self.get_obj(&entity) else {
             warn!("Cannot find entity {entity} in map");
             return None;
         };
@@ -163,19 +163,17 @@ impl GameMap {
             return None;
         }
 
-        let (_, new_pos) = self.check_collide(
-            &entity,
-            &obj.pos,
-            obj_config.collide_span,
-            &obj.direction,
-            obj_config.speed,
-            time_delta,
-            game_lib,
-        );
+        let (collide, new_pos) = if obj_config.obj_type.is_nonpass() {
+            self.check_collide_nonpass(&entity, obj, obj_config, time_delta, game_lib)
+        } else if obj_config.obj_type.is_pass() {
+            self.check_collide_pass(&entity, obj, obj_config, time_delta, game_lib)
+        } else {
+            return None;
+        };
 
         self.update_pos(&entity, new_pos);
 
-        Some(new_pos)
+        Some((collide, new_pos))
     }
 
     pub fn change_direction(&mut self, entity: Entity, new_direction: Vec2) {
@@ -224,27 +222,29 @@ impl GameMap {
         }
     }
 
-    pub fn check_collide(
-        &mut self,
+    fn check_collide_nonpass(
+        &self,
         entity: &Entity,
-        pos: &Vec2,
-        collide_span: f32,
-        direction: &Vec2,
-        speed: f32,
+        obj: &GameObj,
+        obj_config: &GameObjConfig,
         time_delta: f32,
         game_lib: &GameLib,
     ) -> (bool, Vec2) {
-        let pos = pos + direction * speed * time_delta;
+        let pos = obj.pos + obj.direction * obj_config.speed * time_delta;
 
-        let (collide_bounds, pos) =
-            check_obj_collide_bounds(&pos, collide_span, direction, self.width, self.height);
+        let (collide_bounds, pos) = collide_bounds_nonpass(
+            &pos,
+            obj_config.collide_span,
+            &obj.direction,
+            self.width,
+            self.height,
+        );
 
-        let (collide_obj, pos) = self.check_collide_nonpass(
+        let (collide_obj, pos) = self.check_collide_objs_nonpass(
             entity,
             &pos,
-            direction,
-            speed,
-            collide_span,
+            &obj.direction,
+            obj_config,
             time_delta,
             game_lib,
         );
@@ -252,19 +252,42 @@ impl GameMap {
         (collide_bounds || collide_obj, pos)
     }
 
-    fn check_collide_nonpass(
-        &mut self,
+    fn check_collide_pass(
+        &self,
+        entity: &Entity,
+        obj: &GameObj,
+        obj_config: &GameObjConfig,
+        time_delta: f32,
+        game_lib: &GameLib,
+    ) -> (bool, Vec2) {
+        let pos = obj.pos + obj.direction * obj_config.speed * time_delta;
+
+        let collide = collide_bounds_pass(&pos, obj_config.collide_span, self.width, self.height);
+        if collide {
+            return (true, pos);
+        }
+
+        let collide = self.check_collide_obj_pass(entity, &pos, obj_config, game_lib);
+        (collide, pos)
+    }
+
+    fn check_collide_objs_nonpass(
+        &self,
         entity: &Entity,
         pos: &Vec2,
         direction: &Vec2,
-        speed: f32,
-        collide_span: f32,
+        obj_config: &GameObjConfig,
         time_delta: f32,
         game_lib: &GameLib,
     ) -> (bool, Vec2) {
         let mut collide = false;
-        let (start_map_pos, end_map_pos) =
-            self.get_collide_region(pos, direction, speed, collide_span, time_delta);
+        let (start_map_pos, end_map_pos) = self.get_collide_region_nonpass(
+            pos,
+            direction,
+            obj_config.speed,
+            obj_config.collide_span,
+            time_delta,
+        );
         let mut pos = pos.clone();
 
         for row in start_map_pos.row..=end_map_pos.row {
@@ -280,17 +303,21 @@ impl GameMap {
                         warn!("Cannot find entity {e} in map");
                         continue;
                     };
-                    let collide_span2 = game_lib.get_obj_config(config_index).collide_span;
+                    let obj_config2 = game_lib.get_obj_config(config_index);
 
-                    let (collide1, corrected_pos) = check_obj_collide_nonpass(
+                    if !obj_config2.obj_type.is_nonpass() || obj_config2.collide_span == 0.0 {
+                        continue;
+                    }
+
+                    let (collide_obj, corrected_pos) = collide_obj_nonpass(
                         &pos,
-                        collide_span,
+                        obj_config.collide_span,
                         direction,
                         &pos2,
-                        collide_span2,
+                        obj_config2.collide_span,
                     );
 
-                    if collide1 {
+                    if collide_obj {
                         collide = true;
                     }
 
@@ -302,7 +329,56 @@ impl GameMap {
         (collide, pos)
     }
 
-    fn get_collide_region(
+    fn check_collide_obj_pass(
+        &self,
+        entity: &Entity,
+        pos: &Vec2,
+        obj_config: &GameObjConfig,
+        game_lib: &GameLib,
+    ) -> bool {
+        let (start_map_pos, end_map_pos) =
+            self.get_collide_region_pass(pos, obj_config.collide_span);
+
+        for row in start_map_pos.row..=end_map_pos.row {
+            for col in start_map_pos.col..=end_map_pos.col {
+                for e in self.map[row][col].iter() {
+                    if e == entity {
+                        continue;
+                    }
+
+                    let Some((pos2, config_index)) =
+                        self.entities.get(e).map(|obj| (obj.pos, obj.config_index))
+                    else {
+                        warn!("Cannot find entity {e} in map");
+                        continue;
+                    };
+                    let obj_config2 = game_lib.get_obj_config(config_index);
+
+                    if obj_config2.obj_type == GameObjType::Missile
+                        || obj_config2.obj_type == GameObjType::Effect
+                        || obj_config2.collide_span == 0.0
+                        || obj_config.side == obj_config2.side
+                    {
+                        continue;
+                    }
+
+                    if collide_obj_pass(
+                        pos,
+                        obj_config.collide_span,
+                        &pos2,
+                        obj_config2.collide_span,
+                    ) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+    #[inline]
+    fn get_collide_region_nonpass(
         &self,
         pos: &Vec2,
         direction: &Vec2,
@@ -312,24 +388,40 @@ impl GameMap {
     ) -> (MapPos, MapPos) {
         let end_pos = pos + direction * speed * time_delta;
         let span = collide_span + self.max_collide_span;
-        let start_x = pos.x.min(end_pos.x) - span;
-        let start_y = pos.y.min(end_pos.y) - span;
-        let start_map_pos = MapPos {
-            row: self.get_bounded_row(start_y),
-            col: self.get_bounded_col(start_x),
-        };
+        let left = pos.x.min(end_pos.x) - span;
+        let bottom = pos.y.min(end_pos.y) - span;
+        let right = pos.x.max(end_pos.x) + span;
+        let top = pos.y.max(end_pos.y) + span;
 
-        let end_x = pos.x.max(end_pos.x) + span;
-        let end_y = pos.y.max(end_pos.y) + span;
-        let end_map_pos = MapPos {
-            row: self.get_bounded_row(end_y),
-            col: self.get_bounded_col(end_x),
-        };
-
-        (start_map_pos, end_map_pos)
+        self.get_map_region(left, bottom, right, top)
     }
 
-    pub fn update_pos(&mut self, e: &Entity, new_pos: Vec2) {
+    #[inline]
+    fn get_collide_region_pass(&self, pos: &Vec2, collide_span: f32) -> (MapPos, MapPos) {
+        let span = collide_span + self.max_collide_span;
+        let left = pos.x - span;
+        let bottom = pos.y - span;
+        let right = pos.x + span;
+        let top = pos.y + span;
+
+        self.get_map_region(left, bottom, right, top)
+    }
+
+    #[inline]
+    fn get_map_region(&self, left: f32, bottom: f32, right: f32, top: f32) -> (MapPos, MapPos) {
+        (
+            MapPos {
+                row: self.get_bounded_row(bottom),
+                col: self.get_bounded_col(left),
+            },
+            MapPos {
+                row: self.get_bounded_row(top),
+                col: self.get_bounded_col(right),
+            },
+        )
+    }
+
+    fn update_pos(&mut self, e: &Entity, new_pos: Vec2) {
         let Some(old_map_pos) = self.entities.get(e).map(|obj| obj.map_pos) else {
             error!("Cannot find obj {e} in map");
             return;

@@ -80,6 +80,25 @@ pub fn process_input(
     }
 }
 
+fn update_missile(
+    mut missile_query: Query<(Entity, &mut Transform), With<MissileComponent>>,
+    game_lib: Res<GameLib>,
+    mut game_map: ResMut<GameMap>,
+    time: Res<Time>,
+) {
+    let time_delta = time.delta_secs();
+    for mut missile in missile_query.iter_mut() {
+        let Some((collide, new_pos)) = game_map.move_obj(missile.0, game_lib.as_ref(), time_delta)
+        else {
+            continue;
+        };
+
+        let new_screen_pos = game_lib.get_screen_pos(&new_pos);
+        missile.1.translation.x = new_screen_pos.x;
+        missile.1.translation.y = new_screen_pos.y;
+    }
+}
+
 fn load_game_lib<P: AsRef<Path>>(
     config_path: P,
     asset_server: &AssetServer,
@@ -152,11 +171,11 @@ fn move_player(
             player.2.shoot_pos = old_pos + new_direction.rotate(shoot_pos);
         }
     } else {
-        let Some(new_pos) = map.move_obj(player.0, game_lib, time.delta_secs()) else {
+        let Some((_, new_pos)) = map.move_obj(player.0, game_lib, time.delta_secs()) else {
             return;
         };
 
-        let new_screen_pos = game_lib.get_screen_pos(new_pos);
+        let new_screen_pos = game_lib.get_screen_pos(&new_pos);
         player.1.translation.x = new_screen_pos.x;
         player.1.translation.y = new_screen_pos.y;
     }
