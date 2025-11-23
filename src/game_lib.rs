@@ -64,18 +64,6 @@ pub struct GameLib {
     pub game_obj_config_map: HashMap<String, usize>,
 }
 
-impl GameObjType {
-    #[inline]
-    pub fn is_nonpass(&self) -> bool {
-        *self == Self::Tank || *self == Self::Tile
-    }
-
-    #[inline]
-    pub fn is_pass(&self) -> bool {
-        *self == Self::Missile
-    }
-}
-
 impl GameConfig {
     pub fn map_row_count(&self) -> usize {
         self.map_size[0]

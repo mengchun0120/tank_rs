@@ -88,7 +88,7 @@ fn update_missile(
 ) {
     let time_delta = time.delta_secs();
     for mut missile in missile_query.iter_mut() {
-        let Some((collide, new_pos)) = game_map.move_obj(missile.0, game_lib.as_ref(), time_delta)
+        let Some((collide, new_pos)) = game_map.move_obj(&missile.0, game_lib.as_ref(), time_delta)
         else {
             continue;
         };
@@ -171,7 +171,7 @@ fn move_player(
             player.2.shoot_pos = old_pos + new_direction.rotate(shoot_pos);
         }
     } else {
-        let Some((_, new_pos)) = map.move_obj(player.0, game_lib, time.delta_secs()) else {
+        let Some((_, new_pos)) = map.move_obj(&player.0, game_lib, time.delta_secs()) else {
             return;
         };
 

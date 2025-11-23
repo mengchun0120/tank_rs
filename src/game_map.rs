@@ -35,11 +35,12 @@ pub struct GameMapConfig {
 #[derive(Resource)]
 pub struct GameMap {
     cell_size: f32,
-    pub width: f32,
-    pub height: f32,
+    width: f32,
+    height: f32,
     map: Vec<Vec<HashSet<Entity>>>,
     entities: HashMap<Entity, GameObj>,
     max_collide_span: f32,
+    despawn_pool: HashSet<Entity>,
 }
 
 impl GameMap {
@@ -51,6 +52,7 @@ impl GameMap {
             map: vec![vec![HashSet::new(); col_count]; row_count],
             entities: HashMap::new(),
             max_collide_span: 0.0,
+            despawn_pool: HashSet::new(),
         }
     }
 
@@ -96,64 +98,38 @@ impl GameMap {
     }
 
     #[inline]
-    pub fn get_map_index(&self, s: f32) -> i32 {
-        (s / self.cell_size).floor() as i32
-    }
-
-    #[inline]
-    pub fn bound_row(&self, row: i32) -> usize {
-        if row < 0 {
-            0
-        } else if row as usize >= self.row_count() {
-            self.row_count() - 1
-        } else {
-            row as usize
-        }
-    }
-
-    #[inline]
-    pub fn bound_col(&self, col: i32) -> usize {
-        if col < 0 {
-            0
-        } else if col as usize >= self.col_count() {
-            self.col_count() - 1
-        } else {
-            col as usize
-        }
-    }
-
-    #[inline]
-    pub fn get_bounded_row(&self, y: f32) -> usize {
-        self.bound_row(self.get_map_index(y))
-    }
-
-    #[inline]
-    pub fn get_bounded_col(&self, x: f32) -> usize {
-        self.bound_col(self.get_map_index(x))
-    }
-
-    #[inline]
     pub fn get_obj(&self, entity: &Entity) -> Option<&GameObj> {
         self.entities.get(entity)
     }
 
     #[inline]
-    pub fn get_obj_mut(&mut self, entity: &Entity) -> Option<&mut GameObj> {
-        self.entities.get_mut(entity)
+    pub fn get_map_index(&self, s: f32) -> i32 {
+        (s / self.cell_size).floor() as i32
     }
 
     #[inline]
-    pub fn get_obj_clone(&self, entity: &Entity) -> Option<GameObj> {
-        self.get_obj(entity).map(|obj| obj.clone())
+    pub fn clamp_row(&self, y: f32) -> usize {
+        self.get_map_index(y)
+            .clamp(0, (self.row_count() - 1) as i32) as usize
+    }
+
+    #[inline]
+    pub fn clamp_col(&self, x: f32) -> usize {
+        self.get_map_index(x)
+            .clamp(0, (self.col_count() - 1) as i32) as usize
+    }
+
+    pub fn clear_despawn_pool(&mut self) {
+        self.despawn_pool.clear();
     }
 
     pub fn move_obj(
         &mut self,
-        entity: Entity,
+        entity: &Entity,
         game_lib: &GameLib,
         time_delta: f32,
     ) -> Option<(bool, Vec2)> {
-        let Some(obj) = self.get_obj(&entity) else {
+        let Some(obj) = self.get_obj(entity).cloned() else {
             warn!("Cannot find entity {entity} in map");
             return None;
         };
@@ -163,12 +139,16 @@ impl GameMap {
             return None;
         }
 
-        let (collide, new_pos) = if obj_config.obj_type.is_nonpass() {
-            self.check_collide_nonpass(&entity, obj, obj_config, time_delta, game_lib)
-        } else if obj_config.obj_type.is_pass() {
-            self.check_collide_pass(&entity, obj, obj_config, time_delta, game_lib)
-        } else {
-            return None;
+        let (collide, new_pos) = match obj_config.obj_type {
+            GameObjType::Tank => {
+                self.check_nonpass_collide(entity, &obj, obj_config, time_delta, game_lib)
+            }
+            GameObjType::Missile => {
+                self.check_missile_collide(entity, &obj, obj_config, time_delta, game_lib)
+            }
+            _ => {
+                return None;
+            }
         };
 
         self.update_pos(&entity, new_pos);
@@ -177,7 +157,7 @@ impl GameMap {
     }
 
     pub fn change_direction(&mut self, entity: Entity, new_direction: Vec2) {
-        let Some(obj) = self.get_obj_mut(&entity) else {
+        let Some(obj) = self.entities.get_mut(&entity) else {
             return;
         };
         obj.direction = new_direction.clone();
@@ -222,8 +202,8 @@ impl GameMap {
         }
     }
 
-    fn check_collide_nonpass(
-        &self,
+    fn check_nonpass_collide(
+        &mut self,
         entity: &Entity,
         obj: &GameObj,
         obj_config: &GameObjConfig,
@@ -240,7 +220,7 @@ impl GameMap {
             self.height,
         );
 
-        let (collide_obj, pos) = self.check_collide_objs_nonpass(
+        let (collide_obj, pos) = self.check_nonpass_collide_objs(
             entity,
             &pos,
             &obj.direction,
@@ -252,8 +232,8 @@ impl GameMap {
         (collide_bounds || collide_obj, pos)
     }
 
-    fn check_collide_pass(
-        &self,
+    fn check_missile_collide(
+        &mut self,
         entity: &Entity,
         obj: &GameObj,
         obj_config: &GameObjConfig,
@@ -267,11 +247,16 @@ impl GameMap {
             return (true, pos);
         }
 
-        let collide = self.check_collide_obj_pass(entity, &pos, obj_config, game_lib);
+        let collide = self.check_missile_collide_objs(entity, &pos, obj_config, game_lib);
+
+        if collide {
+            self.despawn_pool.insert(*entity);
+        }
+
         (collide, pos)
     }
 
-    fn check_collide_objs_nonpass(
+    fn check_nonpass_collide_objs(
         &self,
         entity: &Entity,
         pos: &Vec2,
@@ -305,7 +290,11 @@ impl GameMap {
                     };
                     let obj_config2 = game_lib.get_obj_config(config_index);
 
-                    if !obj_config2.obj_type.is_nonpass() || obj_config2.collide_span == 0.0 {
+                    if (obj_config2.obj_type != GameObjType::Tank
+                        && obj_config2.obj_type != GameObjType::Tile)
+                        || obj_config2.collide_span == 0.0
+                        || self.despawn_pool.contains(e)
+                    {
                         continue;
                     }
 
@@ -329,7 +318,7 @@ impl GameMap {
         (collide, pos)
     }
 
-    fn check_collide_obj_pass(
+    fn check_missile_collide_objs(
         &self,
         entity: &Entity,
         pos: &Vec2,
@@ -354,8 +343,8 @@ impl GameMap {
                     };
                     let obj_config2 = game_lib.get_obj_config(config_index);
 
-                    if obj_config2.obj_type == GameObjType::Missile
-                        || obj_config2.obj_type == GameObjType::Effect
+                    if (obj_config2.obj_type != GameObjType::Tank
+                        && obj_config2.obj_type != GameObjType::Tile)
                         || obj_config2.collide_span == 0.0
                         || obj_config.side == obj_config2.side
                     {
@@ -411,12 +400,12 @@ impl GameMap {
     fn get_map_region(&self, left: f32, bottom: f32, right: f32, top: f32) -> (MapPos, MapPos) {
         (
             MapPos {
-                row: self.get_bounded_row(bottom),
-                col: self.get_bounded_col(left),
+                row: self.clamp_row(bottom),
+                col: self.clamp_col(left),
             },
             MapPos {
-                row: self.get_bounded_row(top),
-                col: self.get_bounded_col(right),
+                row: self.clamp_row(top),
+                col: self.clamp_col(right),
             },
         )
     }
