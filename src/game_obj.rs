@@ -3,9 +3,10 @@ use crate::game_map::*;
 use crate::utils::*;
 
 use bevy::prelude::*;
+use std::collections::{HashMap, HashSet};
 
 #[derive(Clone, Resource, Copy)]
-pub struct GameObj {
+pub struct GameObjInfo {
     pub config_index: usize,
     pub pos: Vec2,
     pub map_pos: MapPos,
@@ -31,7 +32,13 @@ pub struct ShootComponent {
     pub missile_config_index: usize,
 }
 
-impl GameObj {
+#[derive(Resource)]
+pub struct GameObjInfoLib (pub HashMap<Entity, GameObjInfo>);
+
+#[derive(Resource)]
+pub struct DespawnPool(pub HashSet<Entity>);
+
+impl GameObjInfo {
     pub fn new(
         config_index: usize,
         pos: Vec2,

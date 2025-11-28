@@ -29,18 +29,15 @@ pub enum Direction {
 
 #[derive(Deserialize)]
 pub struct GameMapConfig {
-    pub game_objs: Vec<GameMapObjConfig>,
+    pub objs: Vec<GameMapObjConfig>,
 }
 
 #[derive(Resource)]
 pub struct GameMap {
-    cell_size: f32,
-    width: f32,
-    height: f32,
-    map: Vec<Vec<HashSet<Entity>>>,
-    entities: HashMap<Entity, GameObj>,
-    max_collide_span: f32,
-    despawn_pool: HashSet<Entity>,
+    pub cell_size: f32,
+    pub width: f32,
+    pub height: f32,
+    pub map: Vec<Vec<HashSet<Entity>>>,
 }
 
 impl GameMap {
@@ -50,25 +47,7 @@ impl GameMap {
             width: col_count as f32 * cell_size,
             height: row_count as f32 * cell_size,
             map: vec![vec![HashSet::new(); col_count]; row_count],
-            entities: HashMap::new(),
-            max_collide_span: 0.0,
-            despawn_pool: HashSet::new(),
         }
-    }
-
-    pub fn load(map_config: &GameMapConfig, game_lib: &GameLib, commands: &mut Commands) -> Self {
-        let config = &game_lib.config;
-        let mut map = Self::new(
-            config.map_cell_size,
-            config.map_row_count(),
-            config.map_col_count(),
-        );
-
-        map.add_objs(&map_config.game_objs, game_lib, commands);
-
-        info!("Map loaded successfully");
-
-        map
     }
 
     #[inline]
@@ -98,8 +77,8 @@ impl GameMap {
     }
 
     #[inline]
-    pub fn get_obj(&self, entity: &Entity) -> Option<&GameObj> {
-        self.entities.get(entity)
+    pub fn add_obj(&mut self, pos: &MapPos, entity: Entity) {
+        self.map[pos.row][pos.col].insert(entity);
     }
 
     #[inline]
@@ -119,10 +98,7 @@ impl GameMap {
             .clamp(0, (self.col_count() - 1) as i32) as usize
     }
 
-    pub fn clear_despawn_pool(&mut self) {
-        self.despawn_pool.clear();
-    }
-
+    /*
     pub fn move_obj(
         &mut self,
         entity: &Entity,
@@ -161,45 +137,6 @@ impl GameMap {
             return;
         };
         obj.direction = new_direction.clone();
-    }
-
-    fn add_objs(
-        &mut self,
-        game_objs: &[GameMapObjConfig],
-        game_lib: &GameLib,
-        commands: &mut Commands,
-    ) {
-        for map_obj_config in game_objs {
-            let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name)
-            else {
-                continue;
-            };
-            let obj_config = game_lib.get_obj_config(config_index);
-            let pos = arr_to_vec2(&map_obj_config.pos);
-
-            if !self.is_inside(&pos, obj_config.collide_span) {
-                error!("Position {:?} is outside map", pos);
-                continue;
-            }
-
-            let map_pos = self.get_map_pos(&pos);
-
-            if let Some((obj, entity)) = GameObj::new(
-                config_index,
-                pos,
-                map_pos,
-                map_obj_config.direction,
-                game_lib,
-                commands,
-            ) {
-                self.map[map_pos.row][map_pos.col].insert(entity);
-                self.entities.insert(entity, obj);
-
-                if self.max_collide_span < obj_config.collide_span {
-                    self.max_collide_span = obj_config.collide_span;
-                }
-            }
-        }
     }
 
     fn check_nonpass_collide(
@@ -365,29 +302,32 @@ impl GameMap {
 
         false
     }
-
+    */
     #[inline]
-    fn get_collide_region_nonpass(
+    pub fn get_collide_region_nonpass(
         &self,
-        pos: &Vec2,
-        direction: &Vec2,
-        speed: f32,
+        start_pos: &Vec2,
+        end_pos: &Vec2,
         collide_span: f32,
-        time_delta: f32,
+        max_collide_span: f32,
     ) -> (MapPos, MapPos) {
-        let end_pos = pos + direction * speed * time_delta;
-        let span = collide_span + self.max_collide_span;
-        let left = pos.x.min(end_pos.x) - span;
-        let bottom = pos.y.min(end_pos.y) - span;
-        let right = pos.x.max(end_pos.x) + span;
-        let top = pos.y.max(end_pos.y) + span;
+        let span = collide_span + max_collide_span;
+        let left = start_pos.x.min(end_pos.x) - span;
+        let bottom = start_pos.y.min(end_pos.y) - span;
+        let right = start_pos.x.max(end_pos.x) + span;
+        let top = start_pos.y.max(end_pos.y) + span;
 
         self.get_map_region(left, bottom, right, top)
     }
 
     #[inline]
-    fn get_collide_region_pass(&self, pos: &Vec2, collide_span: f32) -> (MapPos, MapPos) {
-        let span = collide_span + self.max_collide_span;
+    pub fn get_collide_region_pass(
+        &self,
+        pos: &Vec2,
+        collide_span: f32,
+        max_collide_span: f32,
+    ) -> (MapPos, MapPos) {
+        let span = collide_span + max_collide_span;
         let left = pos.x - span;
         let bottom = pos.y - span;
         let right = pos.x + span;
@@ -410,20 +350,10 @@ impl GameMap {
         )
     }
 
-    fn update_pos(&mut self, e: &Entity, new_pos: Vec2) {
-        let Some(old_map_pos) = self.entities.get(e).map(|obj| obj.map_pos) else {
-            error!("Cannot find obj {e} in map");
-            return;
-        };
-
-        let new_map_pos = self.get_map_pos(&new_pos);
-        if new_map_pos != old_map_pos {
-            self.map[old_map_pos.row][old_map_pos.col].remove(&e);
-            self.map[new_map_pos.row][new_map_pos.col].insert(e.clone());
-        }
-
-        let obj = self.entities.get_mut(&e).unwrap();
-        obj.pos = new_pos;
+    #[inline]
+    pub fn relocate(&mut self, entity: &Entity, old_pos: &MapPos, new_pos: &MapPos) {
+        self.map[old_pos.row][old_pos.col].remove(entity);
+        self.map[new_pos.row][new_pos.col].insert(entity.clone());
     }
 }
 
