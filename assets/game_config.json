@@ -17,7 +17,7 @@
             "obj_type": "Tank",
             "side": "Player",
             "collide_span": 30.0,
-            "speed": 60.0,
+            "speed": 100.0,
             "shoot_config": {
                 "missile": "green_missile",
                 "shoot_duration": 0.1,

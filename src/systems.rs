@@ -239,6 +239,11 @@ fn steer_player(
 
     update_obj_pos_direction(&player.0, &new_pos, &new_direction, game_obj_lib, map);
 
+    if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
+        let init_pos = arr_to_vec2(&shoot_config.shoot_position);
+        player.2.shoot_pos = obj.pos + new_direction.rotate(init_pos);
+    }
+
     capture_collide_missiles(
         &new_pos,
         obj_config,
@@ -247,11 +252,16 @@ fn steer_player(
         game_obj_lib,
         despawn_pool,
     );
+}
 
-    if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
-        let init_pos = arr_to_vec2(&shoot_config.shoot_position);
-        player.2.shoot_pos = obj.pos + new_direction.rotate(init_pos);
+pub fn cleanup_objs(
+    mut commands: Commands,
+    mut despawn_pool: ResMut<DespawnPool>
+) {
+    for e in despawn_pool.0.iter() {
+        commands.entity(e.clone()).despawn();
     }
+    despawn_pool.0.clear();
 }
 
 fn get_tank_new_pos(
