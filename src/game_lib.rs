@@ -60,7 +60,6 @@ pub struct DamageConfig {
 pub struct GameLib {
     pub config: GameConfig,
     pub origin: Vec2,
-    pub max_collide_span: f32,
     pub images: HashMap<String, Handle<Image>>,
     pub game_obj_config_map: HashMap<String, usize>,
 }
@@ -96,7 +95,6 @@ impl GameLib {
         let result = Self {
             config,
             origin,
-            max_collide_span: 0.0,
             images,
             game_obj_config_map,
         };

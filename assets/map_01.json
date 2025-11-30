@@ -14,11 +14,6 @@
             "config_name": "player_tank",
             "pos": [300.0, 100.0],
             "direction": "Left"
-        },
-        {
-            "config_name": "orange_missile",
-            "pos": [400.0, 400.0],
-            "direction": "Down"
         }
     ]
 }

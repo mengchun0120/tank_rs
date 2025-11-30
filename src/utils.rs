@@ -62,9 +62,9 @@ pub fn arr_to_vec2(v: &[f32; 2]) -> Vec2 {
 }
 
 #[inline]
-pub fn get_rotation(d: Vec2) -> Quat {
+pub fn get_rotation(d: &Vec2) -> Quat {
     let from = Vec2::new(1.0, 0.0);
-    Quat::from_rotation_arc_2d(from, d)
+    Quat::from_rotation_arc_2d(from, d.clone())
 }
 
 pub fn check_collide_bounds_nonpass(
@@ -172,7 +172,12 @@ pub fn check_collide_obj_nonpass(
     (true, corrected_pos)
 }
 
-pub fn check_collide_obj_pass(pos1: &Vec2, collide_span1: f32, pos2: &Vec2, collide_span2: f32) -> bool {
+pub fn check_collide_obj_pass(
+    pos1: &Vec2,
+    collide_span1: f32,
+    pos2: &Vec2,
+    collide_span2: f32,
+) -> bool {
     let total_span = collide_span1 + collide_span2;
     (pos1.x - pos2.x).abs() < total_span && (pos1.y - pos2.y).abs() < total_span
 }

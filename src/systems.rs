@@ -51,6 +51,7 @@ pub fn setup_game(
 }
 
 pub fn process_input(
+    mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
     game_lib: Res<GameLib>,
     mut player: Single<(Entity, &mut Transform, &mut ShootComponent), With<PlayerComponent>>,
@@ -99,27 +100,17 @@ pub fn process_input(
             despawn_pool.as_mut(),
             time.as_ref(),
         );
+    } else if keys.just_pressed(KeyCode::KeyF) || keys.pressed(KeyCode::KeyF) {
+        shoot_player_missile(
+            &mut player,
+            &mut commands,
+            game_lib.as_ref(),
+            map.as_mut(),
+            game_obj_lib.as_mut(),
+            time.as_ref(),
+        );
     }
 }
-
-/*fn update_missile(
-    mut missile_query: Query<(Entity, &mut Transform), With<MissileComponent>>,
-    game_lib: Res<GameLib>,
-    mut game_map: ResMut<GameMap>,
-    time: Res<Time>,
-) {
-    let time_delta = time.delta_secs();
-    for mut missile in missile_query.iter_mut() {
-        let Some((collide, new_pos)) = game_map.move_obj(&missile.0, game_lib.as_ref(), time_delta)
-        else {
-            continue;
-        };
-
-        let new_screen_pos = game_lib.get_screen_pos(&new_pos);
-        missile.1.translation.x = new_screen_pos.x;
-        missile.1.translation.y = new_screen_pos.y;
-    }
-}*/
 
 fn load_game_lib<P: AsRef<Path>>(
     config_path: P,
@@ -142,116 +133,6 @@ fn init_window(config: &GameConfig, window: &mut Window) {
     window
         .resolution
         .set(config.window_width(), config.window_height());
-}
-
-fn load_map<P: AsRef<Path>>(
-    map_path: P,
-    game_lib: &mut GameLib,
-    commands: &mut Commands,
-    game_obj_lib: &mut GameObjInfoLib,
-) -> Result<GameMap, MyError> {
-    let map_config: GameMapConfig = read_json(map_path.as_ref())?;
-    let game_config = &game_lib.config;
-    let mut map = GameMap::new(
-        game_config.map_cell_size,
-        game_config.map_row_count(),
-        game_config.map_col_count(),
-    );
-
-    for map_obj_config in map_config.objs.iter() {
-        let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) else {
-            warn!(
-                "Failed to find config name {} in GameLib",
-                map_obj_config.config_name
-            );
-            continue;
-        };
-        let obj_config = game_lib.get_obj_config(config_index);
-        let pos = arr_to_vec2(&map_obj_config.pos);
-
-        if !map.is_inside(&pos, obj_config.collide_span) {
-            error!("Position {:?} is outside map", pos);
-            continue;
-        }
-
-        let map_pos = map.get_map_pos(&pos);
-
-        if let Some((obj, entity)) = GameObjInfo::new(
-            config_index,
-            pos,
-            map_pos,
-            map_obj_config.direction,
-            game_lib,
-            commands,
-        ) {
-            map.add_obj(&map_pos, entity);
-            if game_lib.max_collide_span < obj_config.collide_span {
-                game_lib.max_collide_span = obj_config.collide_span;
-            }
-
-            game_obj_lib.0.insert(entity, obj);
-        }
-    }
-
-    Ok(map)
-}
-
-fn steer_player(
-    d: Direction,
-    game_lib: &GameLib,
-    player: &mut Single<(Entity, &mut Transform, &mut ShootComponent), With<PlayerComponent>>,
-    map: &mut GameMap,
-    game_obj_lib: &mut GameObjInfoLib,
-    despawn_pool: &mut DespawnPool,
-    time: &Time,
-) {
-    if despawn_pool.0.contains(&player.0) {
-        return;
-    }
-
-    let new_direction: Vec2 = d.into();
-    let Some(obj) = game_obj_lib.0.get(&player.0).cloned() else {
-        warn!("Cannot find player in map");
-        return;
-    };
-    let mut new_pos = obj.pos;
-    let obj_config = game_lib.get_obj_config(obj.config_index);
-
-    if new_direction != obj.direction {
-        player.1.rotation = get_rotation(new_direction);
-    } else {
-        let (_, pos) = get_tank_new_pos(
-            &player.0,
-            &obj,
-            obj_config,
-            map,
-            game_lib,
-            game_obj_lib,
-            despawn_pool,
-            time,
-        );
-        new_pos = pos;
-
-        let new_screen_pos = game_lib.get_screen_pos(&new_pos);
-        player.1.translation.x = new_screen_pos.x;
-        player.1.translation.y = new_screen_pos.y;
-    }
-
-    update_obj_pos_direction(&player.0, &new_pos, &new_direction, game_obj_lib, map);
-
-    if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
-        let init_pos = arr_to_vec2(&shoot_config.shoot_position);
-        player.2.shoot_pos = obj.pos + new_direction.rotate(init_pos);
-    }
-
-    capture_collide_missiles(
-        &new_pos,
-        obj_config,
-        map,
-        game_lib,
-        game_obj_lib,
-        despawn_pool,
-    );
 }
 
 pub fn update_missiles(
@@ -307,6 +188,157 @@ pub fn cleanup_objs(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool
         commands.entity(e.clone()).despawn();
     }
     despawn_pool.0.clear();
+}
+
+fn load_map<P: AsRef<Path>>(
+    map_path: P,
+    game_lib: &mut GameLib,
+    commands: &mut Commands,
+    game_obj_lib: &mut GameObjInfoLib,
+) -> Result<GameMap, MyError> {
+    let map_config: GameMapConfig = read_json(map_path.as_ref())?;
+    let game_config = &game_lib.config;
+    let mut map = GameMap::new(
+        game_config.map_cell_size,
+        game_config.map_row_count(),
+        game_config.map_col_count(),
+    );
+
+    for map_obj_config in map_config.objs.iter() {
+        let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) else {
+            warn!(
+                "Failed to find config name {} in GameLib",
+                map_obj_config.config_name
+            );
+            continue;
+        };
+        let pos = arr_to_vec2(&map_obj_config.pos);
+        let direction: Vec2 = map_obj_config.direction.into();
+
+        add_obj(
+            config_index,
+            &pos,
+            &direction,
+            game_lib,
+            &mut map,
+            game_obj_lib,
+            commands,
+        );
+    }
+
+    Ok(map)
+}
+
+fn add_obj(
+    config_index: usize,
+    pos: &Vec2,
+    direction: &Vec2,
+    game_lib: &GameLib,
+    map: &mut GameMap,
+    game_obj_lib: &mut GameObjInfoLib,
+    commands: &mut Commands,
+) {
+    let obj_config = game_lib.get_obj_config(config_index);
+
+    if !map.is_inside(&pos, obj_config.collide_span) {
+        error!("Position {:?} is outside map", pos);
+        return;
+    }
+
+    let map_pos = map.get_map_pos(&pos);
+
+    if let Some((obj, entity)) =
+        GameObjInfo::new(config_index, pos, &map_pos, direction, game_lib, commands)
+    {
+        map.add_obj(&map_pos, entity, obj_config.collide_span);
+        game_obj_lib.0.insert(entity, obj);
+    }
+}
+
+fn steer_player(
+    d: Direction,
+    game_lib: &GameLib,
+    player: &mut Single<(Entity, &mut Transform, &mut ShootComponent), With<PlayerComponent>>,
+    map: &mut GameMap,
+    game_obj_lib: &mut GameObjInfoLib,
+    despawn_pool: &mut DespawnPool,
+    time: &Time,
+) {
+    if despawn_pool.0.contains(&player.0) {
+        return;
+    }
+
+    let new_direction: Vec2 = d.into();
+    let Some(obj) = game_obj_lib.0.get(&player.0).cloned() else {
+        warn!("Cannot find player in map");
+        return;
+    };
+    let mut new_pos = obj.pos;
+    let obj_config = game_lib.get_obj_config(obj.config_index);
+
+    if new_direction != obj.direction {
+        player.1.rotation = get_rotation(&new_direction);
+    } else {
+        let (_, pos) = get_tank_new_pos(
+            &player.0,
+            &obj,
+            obj_config,
+            map,
+            game_lib,
+            game_obj_lib,
+            despawn_pool,
+            time,
+        );
+        new_pos = pos;
+
+        let new_screen_pos = game_lib.get_screen_pos(&new_pos);
+        player.1.translation.x = new_screen_pos.x;
+        player.1.translation.y = new_screen_pos.y;
+    }
+
+    update_obj_pos_direction(&player.0, &new_pos, &new_direction, game_obj_lib, map);
+
+    if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
+        let init_pos = arr_to_vec2(&shoot_config.shoot_position);
+        player.2.shoot_pos = obj.pos + new_direction.rotate(init_pos);
+    }
+
+    capture_collide_missiles(
+        &new_pos,
+        obj_config,
+        map,
+        game_lib,
+        game_obj_lib,
+        despawn_pool,
+    );
+}
+
+fn shoot_player_missile(
+    player: &mut Single<(Entity, &mut Transform, &mut ShootComponent), With<PlayerComponent>>,
+    commands: &mut Commands,
+    game_lib: &GameLib,
+    map: &mut GameMap,
+    game_obj_lib: &mut GameObjInfoLib,
+    time: &Time,
+) {
+    player.2.timer.tick(time.delta());
+    if player.2.timer.just_finished() {
+        let Some(direction) = game_obj_lib.0.get(&player.0).map(|obj| obj.direction) else {
+            error!("Failed to find player in GameObjInfoLib");
+            return;
+        };
+        add_obj(
+            player.2.missile_config_index,
+            &player.2.shoot_pos,
+            &direction,
+            game_lib,
+            map,
+            game_obj_lib,
+            commands,
+        );
+
+        player.2.timer.reset();
+    }
 }
 
 fn get_tank_new_pos(
@@ -401,7 +433,7 @@ fn capture_collide_missiles(
     despawn_pool: &mut DespawnPool,
 ) {
     let (start_map_pos, end_map_pos) =
-        map.get_collide_region_pass(pos, obj_config.collide_span, game_lib.max_collide_span);
+        map.get_collide_region_pass(pos, obj_config.collide_span, map.max_collide_span);
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
@@ -446,7 +478,7 @@ fn check_tank_collide(
         &obj.pos,
         &new_pos,
         obj_config.collide_span,
-        game_lib.max_collide_span,
+        map.max_collide_span,
     );
     let mut pos = new_pos.clone();
 
@@ -500,7 +532,7 @@ fn check_missile_collide(
     despawn_pool: &DespawnPool,
 ) -> bool {
     let (start_map_pos, end_map_pos) =
-        map.get_collide_region_pass(new_pos, obj_config.collide_span, game_lib.max_collide_span);
+        map.get_collide_region_pass(new_pos, obj_config.collide_span, map.max_collide_span);
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {

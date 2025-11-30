@@ -34,6 +34,7 @@ pub struct GameMap {
     pub width: f32,
     pub height: f32,
     pub map: Vec<Vec<HashSet<Entity>>>,
+    pub max_collide_span: f32,
 }
 
 impl GameMap {
@@ -43,6 +44,7 @@ impl GameMap {
             width: col_count as f32 * cell_size,
             height: row_count as f32 * cell_size,
             map: vec![vec![HashSet::new(); col_count]; row_count],
+            max_collide_span: 0.0,
         }
     }
 
@@ -73,8 +75,11 @@ impl GameMap {
     }
 
     #[inline]
-    pub fn add_obj(&mut self, pos: &MapPos, entity: Entity) {
+    pub fn add_obj(&mut self, pos: &MapPos, entity: Entity, collide_span: f32) {
         self.map[pos.row][pos.col].insert(entity);
+        if self.max_collide_span < collide_span {
+            self.max_collide_span = collide_span;
+        }
     }
 
     #[inline]

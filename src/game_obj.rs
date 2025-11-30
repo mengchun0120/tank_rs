@@ -41,9 +41,9 @@ pub struct DespawnPool(pub HashSet<Entity>);
 impl GameObjInfo {
     pub fn new(
         config_index: usize,
-        pos: Vec2,
-        map_pos: MapPos,
-        direction: Direction,
+        pos: &Vec2,
+        map_pos: &MapPos,
+        direction: &Vec2,
         game_lib: &GameLib,
         commands: &mut Commands,
     ) -> Option<(Self, Entity)> {
@@ -54,17 +54,17 @@ impl GameObjInfo {
         };
         let obj = Self {
             config_index,
-            pos,
-            map_pos,
-            direction: direction.into(),
+            pos: pos.clone(),
+            map_pos: map_pos.clone(),
+            direction: direction.clone(),
         };
 
         Some((obj, entity))
     }
 
     fn create_entity(
-        pos: Vec2,
-        direction: Direction,
+        pos: &Vec2,
+        direction: &Vec2,
         obj_config: &GameObjConfig,
         game_lib: &GameLib,
         commands: &mut Commands,
@@ -74,7 +74,6 @@ impl GameObjInfo {
             return None;
         };
         let size = arr_to_vec2(&obj_config.size);
-        let d: Vec2 = direction.into();
         let screen_pos = game_lib.get_screen_pos(&pos);
 
         let mut entity = commands.spawn((
@@ -86,7 +85,7 @@ impl GameObjInfo {
             },
             Transform {
                 translation: Vec3::new(screen_pos.x, screen_pos.y, obj_config.z),
-                rotation: get_rotation(d),
+                rotation: get_rotation(direction),
                 ..default()
             },
         ));
@@ -112,9 +111,10 @@ impl GameObjInfo {
                 .get_obj_config_index(&shoot_config.missile)
                 .expect(&format!("Cannot find missile {}", shoot_config.missile));
 
+            let shoot_pos = pos + direction.rotate(arr_to_vec2(&shoot_config.shoot_position));
             entity.insert(ShootComponent {
                 timer: Timer::from_seconds(shoot_config.shoot_duration, TimerMode::Repeating),
-                shoot_pos: arr_to_vec2(&shoot_config.shoot_position),
+                shoot_pos,
                 missile_config_index,
             });
         }
