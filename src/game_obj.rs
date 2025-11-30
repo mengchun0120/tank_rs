@@ -33,7 +33,7 @@ pub struct ShootComponent {
 }
 
 #[derive(Resource)]
-pub struct GameObjInfoLib (pub HashMap<Entity, GameObjInfo>);
+pub struct GameObjInfoLib(pub HashMap<Entity, GameObjInfo>);
 
 #[derive(Resource)]
 pub struct DespawnPool(pub HashSet<Entity>);

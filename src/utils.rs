@@ -67,7 +67,7 @@ pub fn get_rotation(d: Vec2) -> Quat {
     Quat::from_rotation_arc_2d(from, d)
 }
 
-pub fn collide_bounds_nonpass(
+pub fn check_collide_bounds_nonpass(
     pos: &Vec2,
     collide_span: f32,
     direction: &Vec2,
@@ -123,14 +123,14 @@ pub fn collide_bounds_nonpass(
     (collide, corrected_pos)
 }
 
-pub fn collide_bounds_pass(pos: &Vec2, collide_span: f32, width: f32, height: f32) -> bool {
+pub fn check_collide_bounds_pass(pos: &Vec2, collide_span: f32, width: f32, height: f32) -> bool {
     pos.x - collide_span < 0.0
         || pos.x + collide_span > width
         || pos.y - collide_span < 0.0
         || pos.y + collide_span > height
 }
 
-pub fn collide_obj_nonpass(
+pub fn check_collide_obj_nonpass(
     pos1: &Vec2,
     collide_span1: f32,
     direction: &Vec2,
@@ -172,7 +172,7 @@ pub fn collide_obj_nonpass(
     (true, corrected_pos)
 }
 
-pub fn collide_obj_pass(pos1: &Vec2, collide_span1: f32, pos2: &Vec2, collide_span2: f32) -> bool {
+pub fn check_collide_obj_pass(pos1: &Vec2, collide_span1: f32, pos2: &Vec2, collide_span2: f32) -> bool {
     let total_span = collide_span1 + collide_span2;
-    (pos1.x - pos2.x).abs() < total_span || (pos1.y - pos2.y).abs() < total_span
+    (pos1.x - pos2.x).abs() < total_span && (pos1.y - pos2.y).abs() < total_span
 }

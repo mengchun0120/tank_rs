@@ -254,10 +254,55 @@ fn steer_player(
     );
 }
 
-pub fn cleanup_objs(
-    mut commands: Commands,
-    mut despawn_pool: ResMut<DespawnPool>
+pub fn update_missiles(
+    mut missile_query: Query<(Entity, &mut Transform), With<MissileComponent>>,
+    game_lib: Res<GameLib>,
+    mut map: ResMut<GameMap>,
+    mut game_obj_lib: ResMut<GameObjInfoLib>,
+    mut despawn_pool: ResMut<DespawnPool>,
+    time: Res<Time>,
 ) {
+    for mut missile in missile_query.iter_mut() {
+        if despawn_pool.0.contains(&missile.0) {
+            continue;
+        }
+
+        let Some(obj) = game_obj_lib.0.get(&missile.0).cloned() else {
+            error!("Failed to find entity in GameObjInfoLib");
+            continue;
+        };
+        let obj_config = game_lib.get_obj_config(obj.config_index);
+
+        let (collide, new_pos) = get_missile_new_pos(
+            &missile.0,
+            &obj,
+            obj_config,
+            map.as_ref(),
+            game_lib.as_ref(),
+            game_obj_lib.as_ref(),
+            despawn_pool.as_ref(),
+            time.as_ref(),
+        );
+
+        let screen_pos = game_lib.get_screen_pos(&new_pos);
+        missile.1.translation.x = screen_pos.x;
+        missile.1.translation.y = screen_pos.y;
+
+        update_obj_pos_direction(
+            &missile.0,
+            &new_pos,
+            &obj.direction,
+            game_obj_lib.as_mut(),
+            map.as_mut(),
+        );
+
+        if collide {
+            despawn_pool.0.insert(missile.0);
+        }
+    }
+}
+
+pub fn cleanup_objs(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool>) {
     for e in despawn_pool.0.iter() {
         commands.entity(e.clone()).despawn();
     }
@@ -277,7 +322,7 @@ fn get_tank_new_pos(
     let time_delta = time.delta_secs();
     let pos = obj.pos + obj.direction * obj_config.speed * time_delta;
 
-    let (collide_bounds, pos) = collide_bounds_nonpass(
+    let (collide_bounds, pos) = check_collide_bounds_nonpass(
         &pos,
         obj_config.collide_span,
         &obj.direction,
@@ -285,7 +330,7 @@ fn get_tank_new_pos(
         map.height,
     );
 
-    let (collide_objs, pos) = check_tank_collide_nonpass(
+    let (collide_objs, pos) = check_tank_collide(
         entity,
         &pos,
         obj,
@@ -297,6 +342,35 @@ fn get_tank_new_pos(
     );
 
     (collide_bounds || collide_objs, pos)
+}
+
+fn get_missile_new_pos(
+    entity: &Entity,
+    obj: &GameObjInfo,
+    obj_config: &GameObjConfig,
+    map: &GameMap,
+    game_lib: &GameLib,
+    game_obj_lib: &GameObjInfoLib,
+    despawn_pool: &DespawnPool,
+    time: &Time,
+) -> (bool, Vec2) {
+    let pos = obj.pos + obj.direction * obj_config.speed * time.delta_secs();
+
+    if check_collide_bounds_pass(&pos, obj_config.collide_span, map.width, map.height) {
+        return (true, pos);
+    }
+
+    let collide = check_missile_collide(
+        entity,
+        &pos,
+        obj_config,
+        map,
+        game_lib,
+        game_obj_lib,
+        despawn_pool,
+    );
+
+    (collide, pos)
 }
 
 fn update_obj_pos_direction(
@@ -344,7 +418,7 @@ fn capture_collide_missiles(
                     continue;
                 }
 
-                if collide_obj_pass(
+                if check_collide_obj_pass(
                     pos,
                     obj_config.collide_span,
                     &obj2.pos,
@@ -357,7 +431,7 @@ fn capture_collide_missiles(
     }
 }
 
-fn check_tank_collide_nonpass(
+fn check_tank_collide(
     entity: &Entity,
     new_pos: &Vec2,
     obj: &GameObjInfo,
@@ -396,7 +470,7 @@ fn check_tank_collide_nonpass(
                     continue;
                 }
 
-                let (collide_obj, corrected_pos) = collide_obj_nonpass(
+                let (collide_obj, corrected_pos) = check_collide_obj_nonpass(
                     &pos,
                     obj_config.collide_span,
                     &obj.direction,
@@ -414,4 +488,52 @@ fn check_tank_collide_nonpass(
     }
 
     (collide, pos)
+}
+
+fn check_missile_collide(
+    entity: &Entity,
+    new_pos: &Vec2,
+    obj_config: &GameObjConfig,
+    map: &GameMap,
+    game_lib: &GameLib,
+    game_obj_lib: &GameObjInfoLib,
+    despawn_pool: &DespawnPool,
+) -> bool {
+    let (start_map_pos, end_map_pos) =
+        map.get_collide_region_pass(new_pos, obj_config.collide_span, game_lib.max_collide_span);
+
+    for row in start_map_pos.row..=end_map_pos.row {
+        for col in start_map_pos.col..=end_map_pos.col {
+            for e in map.map[row][col].iter() {
+                if e == entity || despawn_pool.0.contains(e) {
+                    continue;
+                }
+
+                let Some(obj2) = game_obj_lib.0.get(e) else {
+                    warn!("Cannot find entity {e} in map");
+                    continue;
+                };
+                let obj_config2 = game_lib.get_obj_config(obj2.config_index);
+
+                if (obj_config2.obj_type != GameObjType::Tank
+                    && obj_config2.obj_type != GameObjType::Tile)
+                    || obj_config2.collide_span == 0.0
+                    || obj_config.side == obj_config2.side
+                {
+                    continue;
+                }
+
+                if check_collide_obj_pass(
+                    new_pos,
+                    obj_config.collide_span,
+                    &obj2.pos,
+                    obj_config2.collide_span,
+                ) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
 }

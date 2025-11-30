@@ -18,7 +18,7 @@
         {
             "config_name": "orange_missile",
             "pos": [400.0, 400.0],
-            "direction": "Right"
+            "direction": "Down"
         }
     ]
 }
