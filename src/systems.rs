@@ -10,6 +10,7 @@ use std::path::Path;
 pub fn setup_game(
     args: Res<Args>,
     asset_server: Res<AssetServer>,
+    mut texture_atlas_layouts: ResMut<Assets<TextureAtlasLayout>>,
     mut commands: Commands,
     mut exit_app: MessageWriter<AppExit>,
     mut window: Single<&mut Window>,
@@ -17,6 +18,7 @@ pub fn setup_game(
     let Some(mut game_lib) = load_game_lib(
         args.config_path.as_path(),
         asset_server.as_ref(),
+        texture_atlas_layouts.as_mut(),
         &mut exit_app,
     ) else {
         return;
@@ -115,9 +117,10 @@ pub fn process_input(
 fn load_game_lib<P: AsRef<Path>>(
     config_path: P,
     asset_server: &AssetServer,
+    texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
     exit_app: &mut MessageWriter<AppExit>,
 ) -> Option<GameLib> {
-    let game_lib = match GameLib::new(config_path, asset_server) {
+    let game_lib = match GameLib::new(config_path, asset_server, texture_atlas_layouts) {
         Ok(lib) => lib,
         Err(err) => {
             error!("Failed to initialize GameLib: {}", err);
@@ -144,11 +147,11 @@ pub fn update_missiles(
     time: Res<Time>,
 ) {
     for mut missile in missile_query.iter_mut() {
-        if despawn_pool.0.contains(&missile.0) {
+        if despawn_pool.contains(&missile.0) {
             continue;
         }
 
-        let Some(obj) = game_obj_lib.0.get(&missile.0).cloned() else {
+        let Some(obj) = game_obj_lib.get(&missile.0).cloned() else {
             error!("Failed to find entity in GameObjInfoLib");
             continue;
         };
@@ -178,16 +181,16 @@ pub fn update_missiles(
         );
 
         if collide {
-            despawn_pool.0.insert(missile.0);
+            despawn_pool.insert(missile.0);
         }
     }
 }
 
 pub fn cleanup_objs(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool>) {
-    for e in despawn_pool.0.iter() {
+    for e in despawn_pool.iter() {
         commands.entity(e.clone()).despawn();
     }
-    despawn_pool.0.clear();
+    despawn_pool.clear();
 }
 
 fn load_map<P: AsRef<Path>>(
@@ -251,7 +254,7 @@ fn add_obj(
         GameObjInfo::new(config_index, pos, &map_pos, direction, game_lib, commands)
     {
         map.add_obj(&map_pos, entity, obj_config.collide_span);
-        game_obj_lib.0.insert(entity, obj);
+        game_obj_lib.insert(entity, obj);
     }
 }
 
@@ -264,12 +267,12 @@ fn steer_player(
     despawn_pool: &mut DespawnPool,
     time: &Time,
 ) {
-    if despawn_pool.0.contains(&player.0) {
+    if despawn_pool.contains(&player.0) {
         return;
     }
 
     let new_direction: Vec2 = d.into();
-    let Some(obj) = game_obj_lib.0.get(&player.0).cloned() else {
+    let Some(obj) = game_obj_lib.get(&player.0).cloned() else {
         warn!("Cannot find player in map");
         return;
     };
@@ -323,7 +326,7 @@ fn shoot_player_missile(
 ) {
     player.2.timer.tick(time.delta());
     if player.2.timer.just_finished() {
-        let Some(direction) = game_obj_lib.0.get(&player.0).map(|obj| obj.direction) else {
+        let Some(direction) = game_obj_lib.get(&player.0).map(|obj| obj.direction) else {
             error!("Failed to find player in GameObjInfoLib");
             return;
         };
@@ -412,7 +415,7 @@ fn update_obj_pos_direction(
     game_obj_lib: &mut GameObjInfoLib,
     map: &mut GameMap,
 ) {
-    let Some(obj) = game_obj_lib.0.get_mut(entity) else {
+    let Some(obj) = game_obj_lib.get_mut(entity) else {
         error!("Failed to find entity {} in GameObjInfoLib", entity);
         return;
     };
@@ -438,7 +441,7 @@ fn capture_collide_missiles(
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
             for e in map.map[row][col].iter() {
-                let Some(obj2) = game_obj_lib.0.get(e) else {
+                let Some(obj2) = game_obj_lib.get(e) else {
                     warn!("Cannot find entity {e} in map");
                     continue;
                 };
@@ -456,7 +459,7 @@ fn capture_collide_missiles(
                     &obj2.pos,
                     obj_config2.collide_span,
                 ) {
-                    despawn_pool.0.insert(e.clone());
+                    despawn_pool.insert(e.clone());
                 }
             }
         }
@@ -485,11 +488,11 @@ fn check_tank_collide(
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
             for e in map.map[row][col].iter() {
-                if e == entity || despawn_pool.0.contains(e) {
+                if e == entity || despawn_pool.contains(e) {
                     continue;
                 }
 
-                let Some(obj2) = game_obj_lib.0.get(e) else {
+                let Some(obj2) = game_obj_lib.get(e) else {
                     warn!("Cannot find entity {e} in map");
                     continue;
                 };
@@ -537,11 +540,11 @@ fn check_missile_collide(
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
             for e in map.map[row][col].iter() {
-                if e == entity || despawn_pool.0.contains(e) {
+                if e == entity || despawn_pool.contains(e) {
                     continue;
                 }
 
-                let Some(obj2) = game_obj_lib.0.get(e) else {
+                let Some(obj2) = game_obj_lib.get(e) else {
                     warn!("Cannot find entity {e} in map");
                     continue;
                 };
@@ -568,4 +571,36 @@ fn check_missile_collide(
     }
 
     false
+}
+
+fn create_explosion(
+    pos: Vec2,
+    obj_config: &GameObjConfig,
+    game_lib: &GameLib,
+    commands: &mut Commands,
+) {
+    let Some(explosion_config) = obj_config.explosion_config.as_ref() else {
+        error!("ExplosionConfig is absent in GameObjConfig");
+        return;
+    };
+    let Some(texture) = game_lib.images.get(&explosion_config.image).cloned() else {
+        error!("Failed to find image: {}", explosion_config.image);
+        return;
+    };
+    let Some(layout) = game_lib.texture_atlas_layout_map.get(&obj_config.name).cloned() else {
+        error!("Failed to find TextureAtlasLayout for {}", obj_config.name);
+        return;
+    };
+
+    let screen_pos = game_lib.get_screen_pos(&pos);
+    let frame_duration = 1.0 / explosion_config.frames_per_second as f32;
+
+    commands.spawn((
+        Sprite::from_atlas_image(texture, TextureAtlas { layout, index: 1 }),
+        Transform::from_xyz(screen_pos.x, screen_pos.y, explosion_config.z),
+        ExplosionComponent {
+            timer: Timer::from_seconds(frame_duration, TimerMode::Repeating),
+            last_index: explosion_config.frame_count as usize,
+        },
+    ));
 }

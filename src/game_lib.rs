@@ -25,6 +25,7 @@ pub struct GameObjConfig {
     pub speed: f32,
     pub collide_span: f32,
     pub shoot_config: Option<ShootConfig>,
+    pub explosion_config: Option<ExplosionConfig>,
     pub damage_config: Option<DamageConfig>,
 }
 
@@ -51,6 +52,15 @@ pub struct ShootConfig {
 }
 
 #[derive(Debug, Resource, Deserialize)]
+pub struct ExplosionConfig {
+    pub image: String,
+    pub size: [u32; 2],
+    pub frame_count: u32,
+    pub frames_per_second: usize,
+    pub z: f32,
+}
+
+#[derive(Debug, Resource, Deserialize)]
 pub struct DamageConfig {
     pub damage: f32,
     pub explode_span: f32,
@@ -62,6 +72,7 @@ pub struct GameLib {
     pub origin: Vec2,
     pub images: HashMap<String, Handle<Image>>,
     pub game_obj_config_map: HashMap<String, usize>,
+    pub texture_atlas_layout_map: HashMap<String, Handle<TextureAtlasLayout>>,
 }
 
 impl GameConfig {
@@ -86,10 +97,12 @@ impl GameLib {
     pub fn new<P: AsRef<Path>>(
         config_path: P,
         asset_server: &AssetServer,
+        texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
     ) -> Result<Self, MyError> {
         let config: GameConfig = read_json(config_path)?;
         let images = Self::load_images(&config.image_files, asset_server);
-        let game_obj_config_map = Self::load_game_obj_config_map(&config.game_obj_configs);
+        let (game_obj_config_map, texture_atlas_layout_map) =
+            Self::load_configs(&config.game_obj_configs, texture_atlas_layouts);
         let origin = Vec2::new(-config.window_width() / 2.0, -config.window_height() / 2.0);
 
         let result = Self {
@@ -97,6 +110,7 @@ impl GameLib {
             origin,
             images,
             game_obj_config_map,
+            texture_atlas_layout_map,
         };
 
         info!("GameLib initialized successfully");
@@ -131,13 +145,36 @@ impl GameLib {
         result
     }
 
-    fn load_game_obj_config_map(game_obj_configs: &[GameObjConfig]) -> HashMap<String, usize> {
-        let mut result: HashMap<String, usize> = HashMap::new();
+    fn load_configs(
+        game_obj_configs: &[GameObjConfig],
+        texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
+    ) -> (
+        HashMap<String, usize>,
+        HashMap<String, Handle<TextureAtlasLayout>>,
+    ) {
+        let mut game_obj_config_map: HashMap<String, usize> = HashMap::new();
+        let mut texture_atlas_layout_map: HashMap<String, Handle<TextureAtlasLayout>> =
+            HashMap::new();
 
         for i in 0..game_obj_configs.len() {
-            result.insert(game_obj_configs[i].name.clone(), i);
+            game_obj_config_map.insert(game_obj_configs[i].name.clone(), i);
+
+            if let Some(explosion_config) = &game_obj_configs[i].explosion_config {
+                let tile_size = UVec2 {
+                    x: explosion_config.size[0],
+                    y: explosion_config.size[1],
+                };
+                let layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+                    tile_size,
+                    explosion_config.frame_count,
+                    1,
+                    None,
+                    None,
+                ));
+                texture_atlas_layout_map.insert(game_obj_configs[i].name.clone(), layout);
+            }
         }
 
-        result
+        (game_obj_config_map, texture_atlas_layout_map)
     }
 }

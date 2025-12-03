@@ -54,7 +54,6 @@ def gen_explosion_frames(config_json):
     for _ in range(frame_count):
         ball_positions = get_ball_positions(origin, ball_directions, ball_speed, t)
         color = (ball_color[0], ball_color[1], ball_color[2], int(alpha))
-        print(f"ball_color={color}")
         img = create_frame(int(image_size), ball_positions, ball_radius, color)
         images.append(img)
         t += frame_duration

@@ -32,10 +32,16 @@ pub struct ShootComponent {
     pub missile_config_index: usize,
 }
 
-#[derive(Resource)]
+#[derive(Component)]
+pub struct ExplosionComponent {
+    pub timer: Timer,
+    pub last_index: usize,
+}
+
+#[derive(Resource, Deref, DerefMut)]
 pub struct GameObjInfoLib(pub HashMap<Entity, GameObjInfo>);
 
-#[derive(Resource)]
+#[derive(Resource, Deref, DerefMut)]
 pub struct DespawnPool(pub HashSet<Entity>);
 
 impl GameObjInfo {
