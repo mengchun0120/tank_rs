@@ -63,7 +63,8 @@
                 "image": "green_explosion",
                 "size": [70.0, 70.0],
                 "frame_count": 24,
-                "frames_per_second": 24
+                "frames_per_second": 24,
+                "z": 1.0
             },
             "damage_config": {
                 "damage": 20.0,

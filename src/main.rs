@@ -20,7 +20,8 @@ fn main() {
         .add_systems(Startup, setup_game)
         .add_systems(
             Update,
-            (process_input, update_missiles, cleanup_objs).chain(),
+            (process_input, update_missiles, update_explosions),
         )
+        .add_systems(PostUpdate, cleanup)
         .run();
 }

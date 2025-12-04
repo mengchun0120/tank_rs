@@ -83,6 +83,11 @@ impl GameMap {
     }
 
     #[inline]
+    pub fn remove_obj(&mut self, pos: &MapPos, entity: &Entity) {
+        self.map[pos.row][pos.col].remove(entity);
+    }
+
+    #[inline]
     pub fn get_map_index(&self, s: f32) -> i32 {
         (s / self.cell_size).floor() as i32
     }

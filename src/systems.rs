@@ -70,6 +70,7 @@ pub fn process_input(
             map.as_mut(),
             game_obj_lib.as_mut(),
             despawn_pool.as_mut(),
+            &mut commands,
             time.as_ref(),
         );
     } else if keys.just_pressed(KeyCode::ArrowLeft) || keys.pressed(KeyCode::ArrowLeft) {
@@ -80,6 +81,7 @@ pub fn process_input(
             map.as_mut(),
             game_obj_lib.as_mut(),
             despawn_pool.as_mut(),
+            &mut commands,
             time.as_ref(),
         );
     } else if keys.just_pressed(KeyCode::ArrowUp) || keys.pressed(KeyCode::ArrowUp) {
@@ -90,6 +92,7 @@ pub fn process_input(
             map.as_mut(),
             game_obj_lib.as_mut(),
             despawn_pool.as_mut(),
+            &mut commands,
             time.as_ref(),
         );
     } else if keys.just_pressed(KeyCode::ArrowDown) || keys.pressed(KeyCode::ArrowDown) {
@@ -100,6 +103,7 @@ pub fn process_input(
             map.as_mut(),
             game_obj_lib.as_mut(),
             despawn_pool.as_mut(),
+            &mut commands,
             time.as_ref(),
         );
     } else if keys.just_pressed(KeyCode::KeyF) || keys.pressed(KeyCode::KeyF) {
@@ -112,6 +116,90 @@ pub fn process_input(
             time.as_ref(),
         );
     }
+}
+
+pub fn update_missiles(
+    mut missile_query: Query<(Entity, &mut Transform), With<MissileComponent>>,
+    game_lib: Res<GameLib>,
+    mut map: ResMut<GameMap>,
+    mut game_obj_lib: ResMut<GameObjInfoLib>,
+    mut despawn_pool: ResMut<DespawnPool>,
+    mut commands: Commands,
+    time: Res<Time>,
+) {
+    let mut collided_missiles: Vec<(Entity, MapPos)> = Vec::new();
+
+    for (entity, mut transform) in missile_query.iter_mut() {
+        if despawn_pool.contains(&entity) {
+            continue;
+        }
+
+        let Some(obj) = game_obj_lib.get(&entity).cloned() else {
+            error!("Failed to find entity in GameObjInfoLib");
+            continue;
+        };
+        let obj_config = game_lib.get_obj_config(obj.config_index);
+
+        let (collide, new_pos) = get_missile_new_pos(
+            &entity,
+            &obj,
+            obj_config,
+            map.as_ref(),
+            game_lib.as_ref(),
+            game_obj_lib.as_ref(),
+            despawn_pool.as_ref(),
+            time.as_ref(),
+        );
+
+        let screen_pos = game_lib.get_screen_pos(&new_pos);
+        transform.translation.x = screen_pos.x;
+        transform.translation.y = screen_pos.y;
+
+        update_obj_pos_direction(
+            &entity,
+            &new_pos,
+            &obj.direction,
+            game_obj_lib.as_mut(),
+            map.as_mut(),
+        );
+
+        if collide {
+            create_explosion(&new_pos, obj_config, game_lib.as_ref(), &mut commands);
+            collided_missiles.push((entity.clone(), obj.map_pos));
+        }
+    }
+
+    for (e, map_pos) in collided_missiles.iter() {
+        map.remove_obj(map_pos, e);
+        game_obj_lib.remove(e);
+        despawn_pool.insert(e.clone());
+    }
+}
+
+pub fn update_explosions(
+    mut explosion_query: Query<(Entity, &mut Sprite, &mut ExplosionComponent)>,
+    mut despawn_pool: ResMut<DespawnPool>,
+    time: Res<Time>,
+) {
+    for (entity, mut sprite, mut explosion_comp) in explosion_query.iter_mut() {
+        explosion_comp.timer.tick(time.delta());
+        if explosion_comp.timer.is_finished() {
+            if let Some(atlas) = sprite.texture_atlas.as_mut() {
+                if atlas.index < explosion_comp.last_index {
+                    atlas.index += 1;
+                } else {
+                    despawn_pool.insert(entity);
+                }
+            }
+        }
+    }
+}
+
+pub fn cleanup(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool>) {
+    for e in despawn_pool.iter() {
+        commands.entity(e.clone()).despawn();
+    }
+    despawn_pool.clear();
 }
 
 fn load_game_lib<P: AsRef<Path>>(
@@ -136,61 +224,6 @@ fn init_window(config: &GameConfig, window: &mut Window) {
     window
         .resolution
         .set(config.window_width(), config.window_height());
-}
-
-pub fn update_missiles(
-    mut missile_query: Query<(Entity, &mut Transform), With<MissileComponent>>,
-    game_lib: Res<GameLib>,
-    mut map: ResMut<GameMap>,
-    mut game_obj_lib: ResMut<GameObjInfoLib>,
-    mut despawn_pool: ResMut<DespawnPool>,
-    time: Res<Time>,
-) {
-    for mut missile in missile_query.iter_mut() {
-        if despawn_pool.contains(&missile.0) {
-            continue;
-        }
-
-        let Some(obj) = game_obj_lib.get(&missile.0).cloned() else {
-            error!("Failed to find entity in GameObjInfoLib");
-            continue;
-        };
-        let obj_config = game_lib.get_obj_config(obj.config_index);
-
-        let (collide, new_pos) = get_missile_new_pos(
-            &missile.0,
-            &obj,
-            obj_config,
-            map.as_ref(),
-            game_lib.as_ref(),
-            game_obj_lib.as_ref(),
-            despawn_pool.as_ref(),
-            time.as_ref(),
-        );
-
-        let screen_pos = game_lib.get_screen_pos(&new_pos);
-        missile.1.translation.x = screen_pos.x;
-        missile.1.translation.y = screen_pos.y;
-
-        update_obj_pos_direction(
-            &missile.0,
-            &new_pos,
-            &obj.direction,
-            game_obj_lib.as_mut(),
-            map.as_mut(),
-        );
-
-        if collide {
-            despawn_pool.insert(missile.0);
-        }
-    }
-}
-
-pub fn cleanup_objs(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool>) {
-    for e in despawn_pool.iter() {
-        commands.entity(e.clone()).despawn();
-    }
-    despawn_pool.clear();
 }
 
 fn load_map<P: AsRef<Path>>(
@@ -265,6 +298,7 @@ fn steer_player(
     map: &mut GameMap,
     game_obj_lib: &mut GameObjInfoLib,
     despawn_pool: &mut DespawnPool,
+    commands: &mut Commands,
     time: &Time,
 ) {
     if despawn_pool.contains(&player.0) {
@@ -313,6 +347,7 @@ fn steer_player(
         game_lib,
         game_obj_lib,
         despawn_pool,
+        commands,
     );
 }
 
@@ -430,13 +465,15 @@ fn update_obj_pos_direction(
 fn capture_collide_missiles(
     pos: &Vec2,
     obj_config: &GameObjConfig,
-    map: &GameMap,
+    map: &mut GameMap,
     game_lib: &GameLib,
-    game_obj_lib: &GameObjInfoLib,
+    game_obj_lib: &mut GameObjInfoLib,
     despawn_pool: &mut DespawnPool,
+    commands: &mut Commands,
 ) {
     let (start_map_pos, end_map_pos) =
         map.get_collide_region_pass(pos, obj_config.collide_span, map.max_collide_span);
+    let mut captured_missiles: Vec<(Entity, MapPos)> = Vec::new();
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
@@ -459,10 +496,17 @@ fn capture_collide_missiles(
                     &obj2.pos,
                     obj_config2.collide_span,
                 ) {
-                    despawn_pool.insert(e.clone());
+                    create_explosion(&obj2.pos, obj_config2, game_lib, commands);
+                    captured_missiles.push((e.clone(), obj2.map_pos));
                 }
             }
         }
+    }
+
+    for (e, map_pos) in captured_missiles.iter() {
+        map.remove_obj(map_pos, e);
+        game_obj_lib.remove(e);
+        despawn_pool.insert(e.clone());
     }
 }
 
@@ -574,12 +618,12 @@ fn check_missile_collide(
 }
 
 fn create_explosion(
-    pos: Vec2,
-    obj_config: &GameObjConfig,
+    pos: &Vec2,
+    missile_config: &GameObjConfig,
     game_lib: &GameLib,
     commands: &mut Commands,
 ) {
-    let Some(explosion_config) = obj_config.explosion_config.as_ref() else {
+    let Some(explosion_config) = missile_config.explosion_config.as_ref() else {
         error!("ExplosionConfig is absent in GameObjConfig");
         return;
     };
@@ -587,12 +631,19 @@ fn create_explosion(
         error!("Failed to find image: {}", explosion_config.image);
         return;
     };
-    let Some(layout) = game_lib.texture_atlas_layout_map.get(&obj_config.name).cloned() else {
-        error!("Failed to find TextureAtlasLayout for {}", obj_config.name);
+    let Some(layout) = game_lib
+        .texture_atlas_layout_map
+        .get(&missile_config.name)
+        .cloned()
+    else {
+        error!(
+            "Failed to find TextureAtlasLayout for {}",
+            missile_config.name
+        );
         return;
     };
 
-    let screen_pos = game_lib.get_screen_pos(&pos);
+    let screen_pos = game_lib.get_screen_pos(pos);
     let frame_duration = 1.0 / explosion_config.frames_per_second as f32;
 
     commands.spawn((
