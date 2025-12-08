@@ -18,7 +18,15 @@ fn main() {
         .add_plugins(DefaultPlugins.build().disable::<LogPlugin>())
         .insert_resource(args)
         .add_systems(Startup, setup_game)
-        .add_systems(Update, (process_input, update_missiles, update_explosions))
+        .add_systems(
+            Update,
+            (
+                process_input,
+                update_missiles,
+                update_explosions,
+                update_phasing_objs,
+            ),
+        )
         .add_systems(PostUpdate, cleanup)
         .run();
 }

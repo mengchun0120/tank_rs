@@ -12,6 +12,7 @@ pub struct GameConfig {
     pub map_cell_size: f32,
     image_files: HashMap<String, String>,
     pub game_obj_configs: Vec<GameObjConfig>,
+    pub phasing_duration: f32,
 }
 
 #[derive(Debug, Resource, Deserialize)]

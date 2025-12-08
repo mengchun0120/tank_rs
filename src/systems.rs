@@ -127,7 +127,7 @@ pub fn update_missiles(
     mut commands: Commands,
     time: Res<Time>,
 ) {
-    let mut dead_objs: HashMap<Entity, MapPos> = HashMap::new();
+    let mut dead_objs: HashMap<Entity, DeadGameObjInfo> = HashMap::new();
 
     for (entity, mut transform) in missile_query.iter_mut() {
         if despawn_pool.contains(&entity) {
@@ -174,15 +174,24 @@ pub fn update_missiles(
                 despawn_pool.as_ref(),
                 &mut commands,
             );
-            dead_objs.insert(entity.clone(), obj.map_pos);
+            dead_objs.insert(
+                entity.clone(),
+                DeadGameObjInfo {
+                    map_pos: obj.map_pos,
+                    is_phasing: false,
+                },
+            );
         }
     }
 
-    for (e, map_pos) in dead_objs.iter() {
-        map.remove_obj(map_pos, e);
-        game_obj_lib.remove(e);
-        despawn_pool.insert(e.clone());
-    }
+    process_dead_objs(
+        &dead_objs,
+        game_lib.config.phasing_duration,
+        map.as_mut(),
+        game_obj_lib.as_mut(),
+        despawn_pool.as_mut(),
+        &mut commands,
+    );
 }
 
 pub fn update_explosions(
@@ -200,6 +209,24 @@ pub fn update_explosions(
                     despawn_pool.insert(entity);
                 }
             }
+        }
+    }
+}
+
+pub fn update_phasing_objs(
+    mut phasing_obj_query: Query<(Entity, &mut Sprite, &mut PhasingTimer)>,
+    mut despawn_pool: ResMut<DespawnPool>,
+    game_lib: Res<GameLib>,
+    time: Res<Time>,
+) {
+    for (entity, mut sprite, mut phasing_timer) in phasing_obj_query.iter_mut() {
+        phasing_timer.tick(time.delta());
+        if !phasing_timer.is_finished() {
+            let alpha =
+                (1.0 - phasing_timer.elapsed_secs() / game_lib.config.phasing_duration).max(0.0);
+            sprite.color.set_alpha(alpha);
+        } else {
+            despawn_pool.insert(entity);
         }
     }
 }
@@ -481,7 +508,7 @@ fn capture_collide_missiles(
     commands: &mut Commands,
 ) {
     let (start_map_pos, end_map_pos) = map.get_collide_region_pass(pos, obj_config.collide_span);
-    let mut dead_objs: HashMap<Entity, MapPos> = HashMap::new();
+    let mut dead_objs: HashMap<Entity, DeadGameObjInfo> = HashMap::new();
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
@@ -514,18 +541,27 @@ fn capture_collide_missiles(
                             despawn_pool,
                             commands,
                         );
-                        dead_objs.insert(e.clone(), obj2.map_pos);
+                        dead_objs.insert(
+                            e.clone(),
+                            DeadGameObjInfo {
+                                map_pos: obj2.map_pos,
+                                is_phasing: false,
+                            },
+                        );
                     }
                 }
             }
         }
     }
 
-    for (e, map_pos) in dead_objs.iter() {
-        map.remove_obj(map_pos, e);
-        game_obj_lib.remove(e);
-        despawn_pool.insert(e.clone());
-    }
+    process_dead_objs(
+        &dead_objs,
+        game_lib.config.phasing_duration,
+        map,
+        game_obj_lib,
+        despawn_pool,
+        commands,
+    );
 }
 
 fn check_tank_collide(
@@ -634,7 +670,7 @@ fn check_missile_collide(
 fn create_explosion(
     pos: &Vec2,
     missile_config: &GameObjConfig,
-    dead_objs: &mut HashMap<Entity, MapPos>,
+    dead_objs: &mut HashMap<Entity, DeadGameObjInfo>,
     map: &GameMap,
     game_lib: &GameLib,
     game_obj_lib: &mut GameObjInfoLib,
@@ -687,7 +723,7 @@ fn create_explosion(
 fn do_damage(
     pos: &Vec2,
     missile_config: &GameObjConfig,
-    dead_objs: &mut HashMap<Entity, MapPos>,
+    dead_objs: &mut HashMap<Entity, DeadGameObjInfo>,
     map: &GameMap,
     game_obj_lib: &mut GameObjInfoLib,
     despawn_pool: &DespawnPool,
@@ -722,11 +758,39 @@ fn do_damage(
                     if let Some(hp) = obj.hp.as_mut() {
                         *hp = (*hp - damage_config.damage).max(0);
                         if *hp == 0 {
-                            dead_objs.insert(e.clone(), obj.map_pos);
+                            dead_objs.insert(
+                                e.clone(),
+                                DeadGameObjInfo {
+                                    map_pos: obj.map_pos,
+                                    is_phasing: true,
+                                },
+                            );
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+fn process_dead_objs(
+    dead_objs: &HashMap<Entity, DeadGameObjInfo>,
+    phasing_duration: f32,
+    map: &mut GameMap,
+    game_obj_lib: &mut GameObjInfoLib,
+    despawn_pool: &mut DespawnPool,
+    commands: &mut Commands,
+) {
+    for (e, dead_obj) in dead_objs.iter() {
+        map.remove_obj(&dead_obj.map_pos, e);
+        game_obj_lib.remove(e);
+        if !dead_obj.is_phasing {
+            despawn_pool.insert(e.clone());
+        } else {
+            commands
+                .entity(e.clone())
+                .remove::<AIComponent>()
+                .insert(PhasingTimer::new(phasing_duration));
         }
     }
 }

@@ -39,6 +39,14 @@ pub struct ExplosionComponent {
     pub last_index: usize,
 }
 
+pub struct DeadGameObjInfo {
+    pub map_pos: MapPos,
+    pub is_phasing: bool,
+}
+
+#[derive(Component, Deref, DerefMut)]
+pub struct PhasingTimer(pub Timer);
+
 #[derive(Resource, Deref, DerefMut)]
 pub struct GameObjInfoLib(pub HashMap<Entity, GameObjInfo>);
 
@@ -128,5 +136,11 @@ impl GameObjInfo {
         }
 
         Some(entity.id())
+    }
+}
+
+impl PhasingTimer {
+    pub fn new(duration: f32) -> Self {
+        Self(Timer::from_seconds(duration, TimerMode::Once))
     }
 }

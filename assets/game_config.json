@@ -9,6 +9,7 @@
         "orange_missile": "orange_missile.png",
         "green_explosion": "green_explosion.png"
     },
+    "phasing_duration": 0.2,
     "game_obj_configs": [
         {
             "name": "player_tank",
