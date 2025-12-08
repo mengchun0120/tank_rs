@@ -110,9 +110,8 @@ impl GameMap {
         start_pos: &Vec2,
         end_pos: &Vec2,
         collide_span: f32,
-        max_collide_span: f32,
     ) -> (MapPos, MapPos) {
-        let span = collide_span + max_collide_span;
+        let span = collide_span + self.max_collide_span;
         let left = start_pos.x.min(end_pos.x) - span;
         let bottom = start_pos.y.min(end_pos.y) - span;
         let right = start_pos.x.max(end_pos.x) + span;
@@ -122,13 +121,8 @@ impl GameMap {
     }
 
     #[inline]
-    pub fn get_collide_region_pass(
-        &self,
-        pos: &Vec2,
-        collide_span: f32,
-        max_collide_span: f32,
-    ) -> (MapPos, MapPos) {
-        let span = collide_span + max_collide_span;
+    pub fn get_collide_region_pass(&self, pos: &Vec2, collide_span: f32) -> (MapPos, MapPos) {
+        let span = collide_span + self.max_collide_span;
         let left = pos.x - span;
         let bottom = pos.y - span;
         let right = pos.x + span;

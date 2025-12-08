@@ -1,1 +1,1 @@
-$env:RUST_LOG="tank_rs=info"; cargo run -- -l game.log -c assets\game_config.json -m assets\map_01.json
+$env:RUST_LOG="tank_rs=info";  $env:WGPU_BACKEND="D3D12"; cargo run -- -l game.log -c assets\game_config.json -m assets\map_01.json

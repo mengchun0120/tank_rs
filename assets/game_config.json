@@ -23,7 +23,8 @@
                 "missile": "green_missile",
                 "shoot_duration": 0.1,
                 "shoot_position": [30.0, 0.0]
-            }
+            },
+            "max_hp": 100
         },
         {
             "name": "steel_tile",
@@ -48,7 +49,8 @@
                 "missile": "orange_missile",
                 "shoot_duration": 1.0,
                 "shoot_position": [30.0, 0.0]
-            }
+            },
+            "max_hp": 20
         },
         {
             "name": "green_missile",
@@ -61,13 +63,13 @@
             "speed": 120.0,
             "explosion_config": {
                 "image": "green_explosion",
-                "size": [70.0, 70.0],
+                "size": [70, 70],
                 "frame_count": 24,
                 "frames_per_second": 24,
                 "z": 1.0
             },
             "damage_config": {
-                "damage": 20.0,
+                "damage": 20,
                 "explode_span": 40.0
             }
         },
@@ -81,7 +83,7 @@
             "collide_span": 5.0,
             "speed": 80.0,
             "damage_config": {
-                "damage": 10.0,
+                "damage": 10,
                 "explode_span": 30.0
             }
         }

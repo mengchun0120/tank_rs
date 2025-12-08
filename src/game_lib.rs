@@ -27,6 +27,7 @@ pub struct GameObjConfig {
     pub shoot_config: Option<ShootConfig>,
     pub explosion_config: Option<ExplosionConfig>,
     pub damage_config: Option<DamageConfig>,
+    pub max_hp: Option<u32>,
 }
 
 #[derive(Debug, Resource, Deserialize, PartialEq, Eq, Copy, Clone)]
@@ -62,7 +63,7 @@ pub struct ExplosionConfig {
 
 #[derive(Debug, Resource, Deserialize)]
 pub struct DamageConfig {
-    pub damage: f32,
+    pub damage: u32,
     pub explode_span: f32,
 }
 

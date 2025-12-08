@@ -127,7 +127,7 @@ pub fn update_missiles(
     mut commands: Commands,
     time: Res<Time>,
 ) {
-    let mut collided_missiles: Vec<(Entity, MapPos)> = Vec::new();
+    let mut dead_objs: Vec<(Entity, MapPos)> = Vec::new();
 
     for (entity, mut transform) in missile_query.iter_mut() {
         if despawn_pool.contains(&entity) {
@@ -164,12 +164,20 @@ pub fn update_missiles(
         );
 
         if collide {
-            create_explosion(&new_pos, obj_config, game_lib.as_ref(), &mut commands);
-            collided_missiles.push((entity.clone(), obj.map_pos));
+            create_explosion(
+                &new_pos,
+                obj_config,
+                &mut dead_objs,
+                map.as_ref(),
+                game_lib.as_ref(),
+                game_obj_lib.as_mut(),
+                &mut commands,
+            );
+            dead_objs.push((entity.clone(), obj.map_pos));
         }
     }
 
-    for (e, map_pos) in collided_missiles.iter() {
+    for (e, map_pos) in dead_objs.iter() {
         map.remove_obj(map_pos, e);
         game_obj_lib.remove(e);
         despawn_pool.insert(e.clone());
@@ -185,7 +193,7 @@ pub fn update_explosions(
         explosion_comp.timer.tick(time.delta());
         if explosion_comp.timer.is_finished() {
             if let Some(atlas) = sprite.texture_atlas.as_mut() {
-                if atlas.index < explosion_comp.last_index {
+                if atlas.index < explosion_comp.last_index - 1 {
                     atlas.index += 1;
                 } else {
                     despawn_pool.insert(entity);
@@ -471,14 +479,13 @@ fn capture_collide_missiles(
     despawn_pool: &mut DespawnPool,
     commands: &mut Commands,
 ) {
-    let (start_map_pos, end_map_pos) =
-        map.get_collide_region_pass(pos, obj_config.collide_span, map.max_collide_span);
-    let mut captured_missiles: Vec<(Entity, MapPos)> = Vec::new();
+    let (start_map_pos, end_map_pos) = map.get_collide_region_pass(pos, obj_config.collide_span);
+    let mut dead_objs: Vec<(Entity, MapPos)> = Vec::new();
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
             for e in map.map[row][col].iter() {
-                let Some(obj2) = game_obj_lib.get(e) else {
+                let Some(obj2) = game_obj_lib.get(e).cloned() else {
                     warn!("Cannot find entity {e} in map");
                     continue;
                 };
@@ -496,14 +503,22 @@ fn capture_collide_missiles(
                     &obj2.pos,
                     obj_config2.collide_span,
                 ) {
-                    create_explosion(&obj2.pos, obj_config2, game_lib, commands);
-                    captured_missiles.push((e.clone(), obj2.map_pos));
+                    create_explosion(
+                        &obj2.pos,
+                        obj_config2,
+                        &mut dead_objs,
+                        map,
+                        game_lib,
+                        game_obj_lib,
+                        commands,
+                    );
+                    dead_objs.push((e.clone(), obj2.map_pos));
                 }
             }
         }
     }
 
-    for (e, map_pos) in captured_missiles.iter() {
+    for (e, map_pos) in dead_objs.iter() {
         map.remove_obj(map_pos, e);
         game_obj_lib.remove(e);
         despawn_pool.insert(e.clone());
@@ -521,12 +536,8 @@ fn check_tank_collide(
     despawn_pool: &DespawnPool,
 ) -> (bool, Vec2) {
     let mut collide = false;
-    let (start_map_pos, end_map_pos) = map.get_collide_region_nonpass(
-        &obj.pos,
-        &new_pos,
-        obj_config.collide_span,
-        map.max_collide_span,
-    );
+    let (start_map_pos, end_map_pos) =
+        map.get_collide_region_nonpass(&obj.pos, &new_pos, obj_config.collide_span);
     let mut pos = new_pos.clone();
 
     for row in start_map_pos.row..=end_map_pos.row {
@@ -579,7 +590,7 @@ fn check_missile_collide(
     despawn_pool: &DespawnPool,
 ) -> bool {
     let (start_map_pos, end_map_pos) =
-        map.get_collide_region_pass(new_pos, obj_config.collide_span, map.max_collide_span);
+        map.get_collide_region_pass(new_pos, obj_config.collide_span);
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
@@ -620,9 +631,14 @@ fn check_missile_collide(
 fn create_explosion(
     pos: &Vec2,
     missile_config: &GameObjConfig,
+    dead_objs: &mut Vec<(Entity, MapPos)>,
+    map: &GameMap,
     game_lib: &GameLib,
+    game_obj_lib: &mut GameObjInfoLib,
     commands: &mut Commands,
 ) {
+    do_damage(pos, missile_config, dead_objs, map, game_obj_lib, game_lib);
+
     let Some(explosion_config) = missile_config.explosion_config.as_ref() else {
         error!("ExplosionConfig is absent in GameObjConfig");
         return;
@@ -647,11 +663,56 @@ fn create_explosion(
     let frame_duration = 1.0 / explosion_config.frames_per_second as f32;
 
     commands.spawn((
-        Sprite::from_atlas_image(texture, TextureAtlas { layout, index: 1 }),
+        Sprite::from_atlas_image(texture, TextureAtlas { layout, index: 0 }),
         Transform::from_xyz(screen_pos.x, screen_pos.y, explosion_config.z),
         ExplosionComponent {
             timer: Timer::from_seconds(frame_duration, TimerMode::Repeating),
             last_index: explosion_config.frame_count as usize,
         },
     ));
+}
+
+fn do_damage(
+    pos: &Vec2,
+    missile_config: &GameObjConfig,
+    dead_objs: &mut Vec<(Entity, MapPos)>,
+    map: &GameMap,
+    game_obj_lib: &mut GameObjInfoLib,
+    game_lib: &GameLib,
+) {
+    let Some(damage_config) = &missile_config.damage_config else {
+        return;
+    };
+    let (start_pos, end_pos) = map.get_collide_region_pass(pos, damage_config.explode_span);
+
+    for row in 0..=start_pos.row {
+        for col in 0..=end_pos.row {
+            for e in map.map[row][col].iter() {
+                let Some(obj) = game_obj_lib.get_mut(e) else {
+                    error!("Failed to find entity {} in GameObjLib", e);
+                    continue;
+                };
+                let obj_config = game_lib.get_obj_config(obj.config_index);
+
+                if obj_config.obj_type != GameObjType::Tank
+                    || obj_config.side == missile_config.side
+                    || !check_collide_obj_pass(
+                        pos,
+                        damage_config.explode_span,
+                        &obj.pos,
+                        obj_config.collide_span,
+                    )
+                {
+                    continue;
+                }
+
+                if let Some(hp) = obj.hp.as_mut() {
+                    *hp = (*hp - damage_config.damage).max(0);
+                    if *hp == 0 {
+                        dead_objs.push((e.clone(), obj.map_pos));
+                    }
+                }
+            }
+        }
+    }
 }

@@ -11,6 +11,7 @@ pub struct GameObjInfo {
     pub pos: Vec2,
     pub map_pos: MapPos,
     pub direction: Vec2,
+    pub hp: Option<u32>,
 }
 
 #[derive(Component)]
@@ -38,6 +39,9 @@ pub struct ExplosionComponent {
     pub last_index: usize,
 }
 
+#[derive(Component, Deref, DerefMut)]
+pub struct HPComponent(pub u32);
+
 #[derive(Resource, Deref, DerefMut)]
 pub struct GameObjInfoLib(pub HashMap<Entity, GameObjInfo>);
 
@@ -63,6 +67,7 @@ impl GameObjInfo {
             pos: pos.clone(),
             map_pos: map_pos.clone(),
             direction: direction.clone(),
+            hp: obj_config.max_hp,
         };
 
         Some((obj, entity))
@@ -104,6 +109,10 @@ impl GameObjInfo {
                 entity.insert(MissileComponent);
             }
             _ => (),
+        }
+
+        if let Some(max_hp) = obj_config.max_hp {
+            entity.insert(HPComponent(max_hp));
         }
 
         if obj_config.side == GameObjSide::AI {
