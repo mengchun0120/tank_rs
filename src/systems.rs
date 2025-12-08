@@ -127,7 +127,7 @@ pub fn update_missiles(
     mut commands: Commands,
     time: Res<Time>,
 ) {
-    let mut dead_objs: Vec<(Entity, MapPos)> = Vec::new();
+    let mut dead_objs: HashMap<Entity, MapPos> = HashMap::new();
 
     for (entity, mut transform) in missile_query.iter_mut() {
         if despawn_pool.contains(&entity) {
@@ -171,9 +171,10 @@ pub fn update_missiles(
                 map.as_ref(),
                 game_lib.as_ref(),
                 game_obj_lib.as_mut(),
+                despawn_pool.as_ref(),
                 &mut commands,
             );
-            dead_objs.push((entity.clone(), obj.map_pos));
+            dead_objs.insert(entity.clone(), obj.map_pos);
         }
     }
 
@@ -480,39 +481,41 @@ fn capture_collide_missiles(
     commands: &mut Commands,
 ) {
     let (start_map_pos, end_map_pos) = map.get_collide_region_pass(pos, obj_config.collide_span);
-    let mut dead_objs: Vec<(Entity, MapPos)> = Vec::new();
+    let mut dead_objs: HashMap<Entity, MapPos> = HashMap::new();
 
     for row in start_map_pos.row..=end_map_pos.row {
         for col in start_map_pos.col..=end_map_pos.col {
             for e in map.map[row][col].iter() {
+                if despawn_pool.contains(e) {
+                    continue;
+                }
                 let Some(obj2) = game_obj_lib.get(e).cloned() else {
                     warn!("Cannot find entity {e} in map");
                     continue;
                 };
                 let obj_config2 = game_lib.get_obj_config(obj2.config_index);
 
-                if obj_config2.obj_type != GameObjType::Missile
-                    || obj_config2.side == obj_config.side
+                if obj_config2.obj_type == GameObjType::Missile
+                    && obj_config2.side != obj_config.side
                 {
-                    continue;
-                }
-
-                if check_collide_obj_pass(
-                    pos,
-                    obj_config.collide_span,
-                    &obj2.pos,
-                    obj_config2.collide_span,
-                ) {
-                    create_explosion(
+                    if check_collide_obj_pass(
+                        pos,
+                        obj_config.collide_span,
                         &obj2.pos,
-                        obj_config2,
-                        &mut dead_objs,
-                        map,
-                        game_lib,
-                        game_obj_lib,
-                        commands,
-                    );
-                    dead_objs.push((e.clone(), obj2.map_pos));
+                        obj_config2.collide_span,
+                    ) {
+                        create_explosion(
+                            &obj2.pos,
+                            obj_config2,
+                            &mut dead_objs,
+                            map,
+                            game_lib,
+                            game_obj_lib,
+                            despawn_pool,
+                            commands,
+                        );
+                        dead_objs.insert(e.clone(), obj2.map_pos);
+                    }
                 }
             }
         }
@@ -631,13 +634,22 @@ fn check_missile_collide(
 fn create_explosion(
     pos: &Vec2,
     missile_config: &GameObjConfig,
-    dead_objs: &mut Vec<(Entity, MapPos)>,
+    dead_objs: &mut HashMap<Entity, MapPos>,
     map: &GameMap,
     game_lib: &GameLib,
     game_obj_lib: &mut GameObjInfoLib,
+    despawn_pool: &DespawnPool,
     commands: &mut Commands,
 ) {
-    do_damage(pos, missile_config, dead_objs, map, game_obj_lib, game_lib);
+    do_damage(
+        pos,
+        missile_config,
+        dead_objs,
+        map,
+        game_obj_lib,
+        despawn_pool,
+        game_lib,
+    );
 
     let Some(explosion_config) = missile_config.explosion_config.as_ref() else {
         error!("ExplosionConfig is absent in GameObjConfig");
@@ -675,41 +687,43 @@ fn create_explosion(
 fn do_damage(
     pos: &Vec2,
     missile_config: &GameObjConfig,
-    dead_objs: &mut Vec<(Entity, MapPos)>,
+    dead_objs: &mut HashMap<Entity, MapPos>,
     map: &GameMap,
     game_obj_lib: &mut GameObjInfoLib,
+    despawn_pool: &DespawnPool,
     game_lib: &GameLib,
 ) {
-    let Some(damage_config) = &missile_config.damage_config else {
+    let Some(damage_config) = missile_config.damage_config.as_ref() else {
         return;
     };
     let (start_pos, end_pos) = map.get_collide_region_pass(pos, damage_config.explode_span);
 
-    for row in 0..=start_pos.row {
-        for col in 0..=end_pos.row {
+    for row in start_pos.row..=end_pos.row {
+        for col in start_pos.col..=end_pos.col {
             for e in map.map[row][col].iter() {
+                if dead_objs.contains_key(e) || despawn_pool.contains(e) {
+                    continue;
+                }
                 let Some(obj) = game_obj_lib.get_mut(e) else {
                     error!("Failed to find entity {} in GameObjLib", e);
                     continue;
                 };
                 let obj_config = game_lib.get_obj_config(obj.config_index);
 
-                if obj_config.obj_type != GameObjType::Tank
-                    || obj_config.side == missile_config.side
-                    || !check_collide_obj_pass(
+                if obj_config.obj_type == GameObjType::Tank
+                    && obj_config.side != missile_config.side
+                    && check_collide_obj_pass(
                         pos,
                         damage_config.explode_span,
                         &obj.pos,
                         obj_config.collide_span,
                     )
                 {
-                    continue;
-                }
-
-                if let Some(hp) = obj.hp.as_mut() {
-                    *hp = (*hp - damage_config.damage).max(0);
-                    if *hp == 0 {
-                        dead_objs.push((e.clone(), obj.map_pos));
+                    if let Some(hp) = obj.hp.as_mut() {
+                        *hp = (*hp - damage_config.damage).max(0);
+                        if *hp == 0 {
+                            dead_objs.insert(e.clone(), obj.map_pos);
+                        }
                     }
                 }
             }
