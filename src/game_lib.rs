@@ -130,8 +130,31 @@ impl GameLib {
         &self.config.game_obj_configs[config_index]
     }
 
+    #[inline]
     pub fn get_obj_config_index(&self, name: &String) -> Option<usize> {
         self.game_obj_config_map.get(name).copied()
+    }
+
+    #[inline]
+    pub fn get_image(&self, name: &String) -> Option<Handle<Image>> {
+        match self.images.get(name) {
+            Some(image) => Some(image.clone()),
+            None => {
+                error!("Failed to find image {}", name);
+                None
+            }
+        }
+    }
+
+    #[inline]
+    pub fn get_texture_atlas_layout(&self, name: &String) -> Option<Handle<TextureAtlasLayout>> {
+        match self.texture_atlas_layout_map.get(name) {
+            Some(layout) => Some(layout.clone()),
+            None => {
+                error!("Failed to find TextureAtlasLayout {}", name);
+                None
+            }
+        }
     }
 
     fn load_images(

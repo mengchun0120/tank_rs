@@ -691,19 +691,10 @@ fn create_explosion(
         error!("ExplosionConfig is absent in GameObjConfig");
         return;
     };
-    let Some(texture) = game_lib.images.get(&explosion_config.image).cloned() else {
-        error!("Failed to find image: {}", explosion_config.image);
+    let Some(texture) = game_lib.get_image(&explosion_config.image) else {
         return;
     };
-    let Some(layout) = game_lib
-        .texture_atlas_layout_map
-        .get(&missile_config.name)
-        .cloned()
-    else {
-        error!(
-            "Failed to find TextureAtlasLayout for {}",
-            missile_config.name
-        );
+    let Some(layout) = game_lib.get_texture_atlas_layout(&missile_config.name) else {
         return;
     };
 

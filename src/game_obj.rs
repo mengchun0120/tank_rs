@@ -85,8 +85,7 @@ impl GameObjInfo {
         game_lib: &GameLib,
         commands: &mut Commands,
     ) -> Option<Entity> {
-        let Some(image) = game_lib.images.get(&obj_config.name) else {
-            error!("Cannot find image {}", obj_config.image);
+        let Some(image) = game_lib.get_image(&obj_config.image) else {
             return None;
         };
         let size = arr_to_vec2(&obj_config.size);
@@ -94,7 +93,7 @@ impl GameObjInfo {
 
         let mut entity = commands.spawn((
             Sprite {
-                image: image.clone(),
+                image,
                 custom_size: Some(size),
                 image_mode: SpriteImageMode::Scale(ScalingMode::FillCenter),
                 ..default()
