@@ -1,3 +1,4 @@
+use crate::ai::*;
 use crate::game_lib::*;
 use crate::game_map::*;
 use crate::utils::*;
@@ -19,9 +20,6 @@ pub struct TankComponent;
 
 #[derive(Component)]
 pub struct MissileComponent;
-
-#[derive(Component)]
-pub struct AIComponent;
 
 #[derive(Component)]
 pub struct PlayerComponent;
@@ -52,6 +50,9 @@ pub struct GameObjInfoLib(pub HashMap<Entity, GameObjInfo>);
 
 #[derive(Resource, Deref, DerefMut)]
 pub struct DespawnPool(pub HashSet<Entity>);
+
+#[derive(Resource)]
+pub struct PlayerInfo(pub Option<Entity>);
 
 impl GameObjInfo {
     pub fn new(
@@ -116,7 +117,13 @@ impl GameObjInfo {
         }
 
         if obj_config.side == GameObjSide::AI {
-            entity.insert(AIComponent);
+            if let Some(name) = obj_config.ai_config.as_ref() {
+                if let Some(ai_config) = game_lib.config.ai_configs.get(name) {
+                    entity.insert(AIComponent::new(ai_config));
+                } else {
+                    error!("Failed to find AIConfig {}", name);
+                }
+            }
         } else if obj_config.side == GameObjSide::Player {
             entity.insert(PlayerComponent);
         }

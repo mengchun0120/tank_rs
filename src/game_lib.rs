@@ -1,3 +1,4 @@
+use crate::ai::*;
 use crate::my_error::*;
 use crate::utils::*;
 
@@ -13,6 +14,7 @@ pub struct GameConfig {
     image_files: HashMap<String, String>,
     pub game_obj_configs: Vec<GameObjConfig>,
     pub phasing_duration: f32,
+    pub ai_configs: HashMap<String, AIConfig>,
 }
 
 #[derive(Debug, Resource, Deserialize)]
@@ -29,6 +31,7 @@ pub struct GameObjConfig {
     pub explosion_config: Option<ExplosionConfig>,
     pub damage_config: Option<DamageConfig>,
     pub max_hp: Option<u32>,
+    pub ai_config: Option<String>,
 }
 
 #[derive(Debug, Resource, Deserialize, PartialEq, Eq, Copy, Clone)]

@@ -1,3 +1,4 @@
+use crate::ai::*;
 use crate::game_lib::*;
 use crate::game_map::*;
 use crate::game_obj::*;
@@ -231,6 +232,50 @@ pub fn update_phasing_objs(
     }
 }
 
+pub fn update_ai(
+    mut ai_tank_query: Query<(Entity, &mut AIComponent)>,
+    game_lib: Res<GameLib>,
+    mut game_obj_lib: ResMut<GameObjInfoLib>,
+    player_info: Res<PlayerInfo>,
+    time: Res<Time>,
+) {
+    let Some(player_entity) = player_info.0.as_ref() else {
+        return;
+    };
+    let Some((config_index, player_pos)) = game_obj_lib
+        .get(player_entity)
+        .map(|obj| (obj.config_index, obj.pos))
+    else {
+        error!("Failed to find player in GameObjInfoLib");
+        return;
+    };
+    let player_collide_span = game_lib.get_obj_config(config_index).collide_span;
+
+    for (entity, mut ai_comp) in ai_tank_query.iter_mut() {
+        let Some(obj) = game_obj_lib.get_mut(&entity) else {
+            error!("Failed to find tank {} in GameObjInfoLib", entity);
+            continue;
+        };
+        let Some(ai_config_name) = game_lib.get_obj_config(obj.config_index).ai_config.as_ref()
+        else {
+            continue;
+        };
+        let Some(ai_config) = game_lib.config.ai_configs.get(ai_config_name) else {
+            error!("Failed to find AIConfig {}", ai_config_name);
+            continue;
+        };
+
+        update_ai_for_obj(
+            obj,
+            ai_comp.as_mut(),
+            ai_config,
+            &player_pos,
+            player_collide_span,
+            time.as_ref(),
+        );
+    }
+}
+
 pub fn cleanup(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool>) {
     for e in despawn_pool.iter() {
         commands.entity(e.clone()).despawn();
@@ -322,6 +367,9 @@ fn add_obj(
     if let Some((obj, entity)) =
         GameObjInfo::new(config_index, pos, &map_pos, direction, game_lib, commands)
     {
+        if obj_config.side == GameObjSide::Player {
+            commands.insert_resource(PlayerInfo(Some(entity)));
+        }
         map.add_obj(&map_pos, entity, obj_config.collide_span);
         game_obj_lib.insert(entity, obj);
     }

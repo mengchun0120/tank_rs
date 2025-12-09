@@ -1,3 +1,4 @@
+mod ai;
 mod game_lib;
 mod game_map;
 mod game_obj;
@@ -18,6 +19,7 @@ fn main() {
         .add_plugins(DefaultPlugins.build().disable::<LogPlugin>())
         .insert_resource(args)
         .add_systems(Startup, setup_game)
+        .add_systems(FixedUpdate, update_ai)
         .add_systems(
             Update,
             (
