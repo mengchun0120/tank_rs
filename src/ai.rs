@@ -1,6 +1,3 @@
-use std::time::Duration;
-
-use crate::game_lib::*;
 use crate::game_obj::*;
 
 use bevy::prelude::*;
@@ -61,10 +58,9 @@ pub fn update_ai_for_obj(
             if ai_comp.move_timer.is_finished() {
                 new_action(obj, ai_comp, ai_config, player_pos, player_collide_span);
             } else if ai_comp.keep_direction_timer.is_finished() {
-                obj.direction = choose_new_direction(&obj.pos, player_pos, player_collide_span);
+                choose_new_direction(obj, ai_comp, player_pos, player_collide_span);
             } else if ai_comp.collision_happened {
-                obj.direction = choose_alt_direction(&obj.direction);
-                ai_comp.collision_happened = false;
+                choose_alt_direction(obj, ai_comp);
             }
         }
         Some(Action::Shoot) => {
@@ -72,7 +68,7 @@ pub fn update_ai_for_obj(
             if ai_comp.shoot_timer.is_finished() {
                 new_action(obj, ai_comp, ai_config, player_pos, player_collide_span);
             } else if ai_comp.keep_direction_timer.is_finished() {
-                obj.direction = choose_new_direction(&obj.pos, player_pos, player_collide_span);
+                choose_new_direction(obj, ai_comp, player_pos, player_collide_span);
             }
         }
     }
@@ -97,33 +93,42 @@ fn new_action(
         ai_comp.shoot_timer.reset();
     }
 
-    ai_comp.keep_direction_timer.reset();
-
-    obj.direction = choose_new_direction(&obj.pos, player_pos, player_collide_span);
+    choose_new_direction(obj, ai_comp, player_pos, player_collide_span);
 }
 
-fn choose_alt_direction(direction: &Vec2) -> Vec2 {
+fn choose_alt_direction(obj: &mut GameObjInfo, ai_comp: &mut AIComponent) {
     let c = if rand::rng().random::<bool>() {
         1.0
     } else {
         -1.0
     };
 
-    if direction.x != 0.0 {
+    obj.direction = if obj.direction.x != 0.0 {
         Vec2::new(0.0, c)
     } else {
         Vec2::new(c, 0.0)
-    }
+    };
+
+    ai_comp.move_timer.reset();
+    ai_comp.keep_direction_timer.reset();
+    ai_comp.collision_happened = false;
 }
 
-fn choose_new_direction(pos: &Vec2, player_pos: &Vec2, player_collide_span: f32) -> Vec2 {
-    if (pos.x - player_pos.x).abs() < player_collide_span {
-        Vec2::new(0.0, (player_pos.y - pos.y).signum())
-    } else if (pos.y - player_pos.y).abs() < player_collide_span {
-        Vec2::new((player_pos.x - pos.x).signum(), 0.0)
+fn choose_new_direction(
+    obj: &mut GameObjInfo,
+    ai_comp: &mut AIComponent,
+    player_pos: &Vec2,
+    player_collide_span: f32,
+) {
+    obj.direction = if (obj.pos.x - player_pos.x).abs() < player_collide_span {
+        Vec2::new(0.0, (player_pos.y - obj.pos.y).signum())
+    } else if (obj.pos.y - player_pos.y).abs() < player_collide_span {
+        Vec2::new((player_pos.x - obj.pos.x).signum(), 0.0)
     } else if rand::rng().random::<bool>() {
-        Vec2::new(0.0, (player_pos.y - pos.y).signum())
+        Vec2::new(0.0, (player_pos.y - obj.pos.y).signum())
     } else {
-        Vec2::new((player_pos.x - pos.x).signum(), 0.0)
-    }
+        Vec2::new((player_pos.x - obj.pos.x).signum(), 0.0)
+    };
+
+    ai_comp.keep_direction_timer.reset();
 }

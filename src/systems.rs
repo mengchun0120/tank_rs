@@ -239,29 +239,18 @@ pub fn update_ai(
     player_info: Res<PlayerInfo>,
     time: Res<Time>,
 ) {
-    let Some(player_entity) = player_info.0.as_ref() else {
+    let Some((player_pos, player_collide_span)) = get_player_info_for_ai(
+        player_info.as_ref(),
+        game_obj_lib.as_ref(),
+        game_lib.as_ref(),
+    ) else {
         return;
     };
-    let Some((config_index, player_pos)) = game_obj_lib
-        .get(player_entity)
-        .map(|obj| (obj.config_index, obj.pos))
-    else {
-        error!("Failed to find player in GameObjInfoLib");
-        return;
-    };
-    let player_collide_span = game_lib.get_obj_config(config_index).collide_span;
 
     for (entity, mut ai_comp) in ai_tank_query.iter_mut() {
-        let Some(obj) = game_obj_lib.get_mut(&entity) else {
-            error!("Failed to find tank {} in GameObjInfoLib", entity);
-            continue;
-        };
-        let Some(ai_config_name) = game_lib.get_obj_config(obj.config_index).ai_config.as_ref()
+        let Some((obj, ai_config)) =
+            get_obj_for_ai(&entity, game_obj_lib.as_mut(), game_lib.as_ref())
         else {
-            continue;
-        };
-        let Some(ai_config) = game_lib.config.ai_configs.get(ai_config_name) else {
-            error!("Failed to find AIConfig {}", ai_config_name);
             continue;
         };
 
@@ -832,4 +821,44 @@ fn process_dead_objs(
                 .insert(PhasingTimer::new(phasing_duration));
         }
     }
+}
+
+fn get_player_info_for_ai(
+    player_info: &PlayerInfo,
+    game_obj_lib: &GameObjInfoLib,
+    game_lib: &GameLib,
+) -> Option<(Vec2, f32)> {
+    let Some(player_entity) = player_info.0.as_ref() else {
+        return None;
+    };
+    let Some((config_index, player_pos)) = game_obj_lib
+        .get(player_entity)
+        .map(|obj| (obj.config_index, obj.pos))
+    else {
+        error!("Failed to find player in GameObjInfoLib");
+        return None;
+    };
+    let player_collide_span = game_lib.get_obj_config(config_index).collide_span;
+
+    Some((player_pos, player_collide_span))
+}
+
+fn get_obj_for_ai<'a, 'b>(
+    entity: &Entity,
+    game_obj_lib: &'a mut GameObjInfoLib,
+    game_lib: &'b GameLib,
+) -> Option<(&'a mut GameObjInfo, &'b AIConfig)> {
+    let Some(obj) = game_obj_lib.get_mut(&entity) else {
+        error!("Failed to find tank {} in GameObjInfoLib", entity);
+        return None;
+    };
+    let Some(ai_config_name) = game_lib.get_obj_config(obj.config_index).ai_config.as_ref() else {
+        return None;
+    };
+    let Some(ai_config) = game_lib.config.ai_configs.get(ai_config_name) else {
+        error!("Failed to find AIConfig {}", ai_config_name);
+        return None;
+    };
+
+    Some((obj, ai_config))
 }
