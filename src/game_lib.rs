@@ -14,7 +14,7 @@ pub struct GameConfig {
     image_files: HashMap<String, String>,
     pub game_obj_configs: Vec<GameObjConfig>,
     pub phasing_duration: f32,
-    pub ai_configs: HashMap<String, AIConfig>,
+    pub ai_configs: Vec<AIConfig>,
 }
 
 #[derive(Debug, Resource, Deserialize)]
@@ -78,6 +78,7 @@ pub struct GameLib {
     pub images: HashMap<String, Handle<Image>>,
     pub game_obj_config_map: HashMap<String, usize>,
     pub texture_atlas_layout_map: HashMap<String, Handle<TextureAtlasLayout>>,
+    pub ai_config_map: HashMap<String, usize>,
 }
 
 impl GameConfig {
@@ -105,22 +106,24 @@ impl GameLib {
         texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
     ) -> Result<Self, MyError> {
         let config: GameConfig = read_json(config_path)?;
-        let images = Self::load_images(&config.image_files, asset_server);
         let (game_obj_config_map, texture_atlas_layout_map) =
             Self::load_configs(&config.game_obj_configs, texture_atlas_layouts);
         let origin = Vec2::new(-config.window_width() / 2.0, -config.window_height() / 2.0);
 
-        let result = Self {
+        let mut game_lib = Self {
             config,
             origin,
-            images,
-            game_obj_config_map,
-            texture_atlas_layout_map,
+            images: HashMap::new(),
+            game_obj_config_map: HashMap::new(),
+            texture_atlas_layout_map: HashMap::new(),
+            ai_config_map: HashMap::new(),
         };
+
+
 
         info!("GameLib initialized successfully");
 
-        Ok(result)
+        Ok(game_lib)
     }
 
     #[inline]
@@ -161,16 +164,13 @@ impl GameLib {
     }
 
     fn load_images(
+        &mut self,
         image_files: &HashMap<String, String>,
         asset_server: &AssetServer,
-    ) -> HashMap<String, Handle<Image>> {
-        let mut result: HashMap<String, Handle<Image>> = HashMap::new();
-
-        for (name, file_path) in image_files.iter() {
-            result.insert(name.clone(), asset_server.load(file_path));
+    ) {
+        for (name, file_path) in self.config.image_files.iter() {
+            self.images.insert(name.clone(), asset_server.load(file_path));
         }
-
-        result
     }
 
     fn load_configs(

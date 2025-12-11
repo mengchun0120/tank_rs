@@ -1,6 +1,11 @@
+use crate::game_lib::*;
+use crate::my_error::*;
+use crate::game_obj::*;
+use crate::utils::*;
 use bevy::prelude::*;
 use serde::Deserialize;
 use std::collections::HashSet;
+use std::path::Path;
 
 #[derive(Component, Clone, Copy, Eq, PartialEq)]
 pub struct MapPos {
@@ -48,6 +53,78 @@ impl GameMap {
         }
     }
 
+    pub fn load<P: AsRef<Path>>(
+        map_path: P,
+        game_lib: &GameLib,
+        game_obj_lib: &mut GameObjInfoLib,
+        commands: &mut Commands,
+    ) -> Result<GameMap, MyError> {
+        let map_config: GameMapConfig = read_json(map_path.as_ref())?;
+        let game_config = &game_lib.config;
+        let mut map = GameMap::new(
+            game_config.map_cell_size,
+            game_config.map_row_count(),
+            game_config.map_col_count(),
+        );
+
+        for map_obj_config in map_config.objs.iter() {
+            let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) else {
+                warn!(
+                    "Failed to find config name {} in GameLib",
+                    map_obj_config.config_name
+                );
+                continue;
+            };
+            let pos = arr_to_vec2(&map_obj_config.pos);
+            let direction: Vec2 = map_obj_config.direction.into();
+
+            map.add_obj(
+                config_index,
+                &pos,
+                &direction,
+                game_lib,
+                game_obj_lib,
+                commands,
+            );
+        }
+
+        Ok(map)
+    }
+
+    pub fn add_obj(
+        &mut self,
+        config_index: usize,
+        pos: &Vec2,
+        direction: &Vec2,
+        game_lib: &GameLib,
+        game_obj_lib: &mut GameObjInfoLib,
+        commands: &mut Commands,
+    ) {
+        let obj_config = game_lib.get_obj_config(config_index);
+
+        if !self.is_inside(&pos, obj_config.collide_span) {
+            error!("Position {:?} is outside map", pos);
+            return;
+        }
+
+        let map_pos = self.get_map_pos(&pos);
+
+        if let Some((obj, entity)) =
+            GameObjInfo::new(config_index, pos, &map_pos, direction, game_lib, commands)
+        {
+            if obj_config.side == GameObjSide::Player {
+                commands.insert_resource(PlayerInfo(Some(entity)));
+            }
+
+            self.map[map_pos.row][map_pos.col].insert(entity);
+            if self.max_collide_span < obj_config.collide_span {
+                self.max_collide_span = obj_config.collide_span;
+            }
+
+            game_obj_lib.insert(entity, obj);
+        }
+    }
+
     #[inline]
     pub fn row_count(&self) -> usize {
         self.map.len()
@@ -71,14 +148,6 @@ impl GameMap {
         MapPos {
             row: (pos.y / self.cell_size).floor() as usize,
             col: (pos.x / self.cell_size).floor() as usize,
-        }
-    }
-
-    #[inline]
-    pub fn add_obj(&mut self, pos: &MapPos, entity: Entity, collide_span: f32) {
-        self.map[pos.row][pos.col].insert(entity);
-        if self.max_collide_span < collide_span {
-            self.max_collide_span = collide_span;
         }
     }
 

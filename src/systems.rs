@@ -2,7 +2,6 @@ use crate::ai::*;
 use crate::game_lib::*;
 use crate::game_map::*;
 use crate::game_obj::*;
-use crate::my_error::*;
 use crate::utils::*;
 use bevy::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -31,11 +30,11 @@ pub fn setup_game(
     let mut game_obj_lib = GameObjInfoLib(HashMap::new());
     let despawn_pool = DespawnPool(HashSet::new());
 
-    let map = match load_map(
+    let map = match GameMap::load(
         args.map_path.as_path(),
-        &mut game_lib,
-        &mut commands,
+        &game_lib,
         &mut game_obj_lib,
+        &mut commands,
     ) {
         Ok(m) => m,
         Err(err) => {
@@ -296,74 +295,6 @@ fn init_window(config: &GameConfig, window: &mut Window) {
         .set(config.window_width(), config.window_height());
 }
 
-fn load_map<P: AsRef<Path>>(
-    map_path: P,
-    game_lib: &mut GameLib,
-    commands: &mut Commands,
-    game_obj_lib: &mut GameObjInfoLib,
-) -> Result<GameMap, MyError> {
-    let map_config: GameMapConfig = read_json(map_path.as_ref())?;
-    let game_config = &game_lib.config;
-    let mut map = GameMap::new(
-        game_config.map_cell_size,
-        game_config.map_row_count(),
-        game_config.map_col_count(),
-    );
-
-    for map_obj_config in map_config.objs.iter() {
-        let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) else {
-            warn!(
-                "Failed to find config name {} in GameLib",
-                map_obj_config.config_name
-            );
-            continue;
-        };
-        let pos = arr_to_vec2(&map_obj_config.pos);
-        let direction: Vec2 = map_obj_config.direction.into();
-
-        add_obj(
-            config_index,
-            &pos,
-            &direction,
-            game_lib,
-            &mut map,
-            game_obj_lib,
-            commands,
-        );
-    }
-
-    Ok(map)
-}
-
-fn add_obj(
-    config_index: usize,
-    pos: &Vec2,
-    direction: &Vec2,
-    game_lib: &GameLib,
-    map: &mut GameMap,
-    game_obj_lib: &mut GameObjInfoLib,
-    commands: &mut Commands,
-) {
-    let obj_config = game_lib.get_obj_config(config_index);
-
-    if !map.is_inside(&pos, obj_config.collide_span) {
-        error!("Position {:?} is outside map", pos);
-        return;
-    }
-
-    let map_pos = map.get_map_pos(&pos);
-
-    if let Some((obj, entity)) =
-        GameObjInfo::new(config_index, pos, &map_pos, direction, game_lib, commands)
-    {
-        if obj_config.side == GameObjSide::Player {
-            commands.insert_resource(PlayerInfo(Some(entity)));
-        }
-        map.add_obj(&map_pos, entity, obj_config.collide_span);
-        game_obj_lib.insert(entity, obj);
-    }
-}
-
 fn steer_player(
     d: Direction,
     game_lib: &GameLib,
@@ -438,12 +369,11 @@ fn shoot_player_missile(
             error!("Failed to find player in GameObjInfoLib");
             return;
         };
-        add_obj(
+        map.add_obj(
             player.2.missile_config_index,
             &player.2.shoot_pos,
             &direction,
             game_lib,
-            map,
             game_obj_lib,
             commands,
         );

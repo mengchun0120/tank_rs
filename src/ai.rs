@@ -12,6 +12,7 @@ pub enum Action {
 
 #[derive(Debug, Deserialize, Resource)]
 pub struct AIConfig {
+    pub name: String,
     pub move_prob: f32,
     pub keep_direction_duration: f32,
     pub move_duration: f32,

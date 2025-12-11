@@ -51,7 +51,8 @@
                 "shoot_duration": 1.0,
                 "shoot_position": [30.0, 0.0]
             },
-            "max_hp": 20
+            "max_hp": 20,
+            "ai_config": "chase_and_shoot"
         },
         {
             "name": "green_missile",
@@ -87,6 +88,29 @@
                 "damage": 10,
                 "explode_span": 30.0
             }
+        }
+    ],
+    "ai_configs": [
+        {
+            "name": "chase_and_shoot",
+            "move_prob": 0.5,
+            "keep_direction_duration": 2.0,
+            "move_duration": 3.0,
+            "shoot_durtion": 3.0
+        },
+        {
+            "name": "steady_shoot",
+            "move_prob": 0.2,
+            "keep_direction_duration": 2.0,
+            "move_duration": 2.0,
+            "shoot_duration": 4.0
+        },
+        {
+            "name": "steady_chase",
+            "move_prob": 0.7,
+            "keep_directoin_duration": 2.0,
+            "move_duration": 4.0,
+            "shoot_duration": 2.0
         }
     ]
 }
