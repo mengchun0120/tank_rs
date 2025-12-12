@@ -63,17 +63,7 @@
             "side": "Player",
             "collide_span": 5.0,
             "speed": 120.0,
-            "explosion_config": {
-                "image": "green_explosion",
-                "size": [70, 70],
-                "frame_count": 24,
-                "frames_per_second": 24,
-                "z": 1.0
-            },
-            "damage_config": {
-                "damage": 20,
-                "explode_span": 40.0
-            }
+            "explosion_name": "green_explosion"
         },
         {
             "name": "orange_missile",
@@ -83,13 +73,20 @@
             "obj_type": "Missile",
             "side": "AI",
             "collide_span": 5.0,
-            "speed": 80.0,
-            "damage_config": {
-                "damage": 10,
-                "explode_span": 30.0
-            }
+            "speed": 80.0
         }
     ],
+    "explosion_configs": {
+        "green_explosion": {
+            "damage": 20.0,
+            "explode_span": 40.0,
+            "image": "green_explosion",
+            "size": [70, 70],
+            "frame_count": 24,
+            "frames_per_second": 24,
+            "z": 1.0
+        }
+    },
     "ai_configs": [
         {
             "name": "chase_and_shoot",

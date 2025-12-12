@@ -16,7 +16,7 @@ pub struct GameObjInfo {
     pub obj_type: GameObjType,
     pub collide_span: f32,
     pub speed: f32,
-    pub hp: Option<u32>,
+    pub hp: Option<f32>,
 }
 
 #[derive(Component)]

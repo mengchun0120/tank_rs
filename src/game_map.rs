@@ -1,6 +1,6 @@
 use crate::game_lib::*;
-use crate::my_error::*;
 use crate::game_obj::*;
+use crate::my_error::*;
 use crate::utils::*;
 use bevy::prelude::*;
 use serde::Deserialize;
@@ -68,7 +68,8 @@ impl GameMap {
         );
 
         for map_obj_config in map_config.objs.iter() {
-            let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name) else {
+            let Some(config_index) = game_lib.get_obj_config_index(&map_obj_config.config_name)
+            else {
                 warn!(
                     "Failed to find config name {} in GameLib",
                     map_obj_config.config_name
@@ -192,13 +193,8 @@ impl GameMap {
             self.height,
         );
 
-        let (collide_objs, pos) = self.check_tank_collide(
-            entity,
-            &pos,
-            obj,
-            game_obj_lib,
-            despawn_pool,
-        );
+        let (collide_objs, pos) =
+            self.check_tank_collide(entity, &pos, obj, game_obj_lib, despawn_pool);
 
         (collide_bounds || collide_objs, pos)
     }
@@ -217,13 +213,7 @@ impl GameMap {
             return (true, pos);
         }
 
-        let collide = self.check_missile_collide(
-            entity,
-            &pos,
-            obj,
-            game_obj_lib,
-            despawn_pool,
-        );
+        let collide = self.check_missile_collide(entity, &pos, obj, game_obj_lib, despawn_pool);
 
         (collide, pos)
     }
@@ -253,8 +243,7 @@ impl GameMap {
                         continue;
                     };
 
-                    if (obj2.obj_type != GameObjType::Tank
-                        && obj2.obj_type != GameObjType::Tile)
+                    if (obj2.obj_type != GameObjType::Tank && obj2.obj_type != GameObjType::Tile)
                         || obj2.collide_span == 0.0
                     {
                         continue;
@@ -288,8 +277,7 @@ impl GameMap {
         game_obj_lib: &GameObjInfoLib,
         despawn_pool: &DespawnPool,
     ) -> bool {
-        let (start_map_pos, end_map_pos) =
-            self.get_collide_region_pass(new_pos, obj.collide_span);
+        let (start_map_pos, end_map_pos) = self.get_collide_region_pass(new_pos, obj.collide_span);
 
         for row in start_map_pos.row..=end_map_pos.row {
             for col in start_map_pos.col..=end_map_pos.col {
@@ -303,8 +291,7 @@ impl GameMap {
                         continue;
                     };
 
-                    if (obj2.obj_type != GameObjType::Tank
-                        && obj2.obj_type != GameObjType::Tile)
+                    if (obj2.obj_type != GameObjType::Tank && obj2.obj_type != GameObjType::Tile)
                         || obj2.collide_span == 0.0
                         || obj.side == obj2.side
                     {
@@ -325,7 +312,6 @@ impl GameMap {
 
         false
     }
-
 
     #[inline]
     pub fn get_collide_region_nonpass(

@@ -14,6 +14,7 @@ pub struct GameConfig {
     image_files: HashMap<String, String>,
     pub game_obj_configs: Vec<GameObjConfig>,
     pub phasing_duration: f32,
+    pub explosion_configs: HashMap<String, ExplosionConfig>,
     pub ai_configs: Vec<AIConfig>,
 }
 
@@ -28,9 +29,8 @@ pub struct GameObjConfig {
     pub speed: f32,
     pub collide_span: f32,
     pub shoot_config: Option<ShootConfig>,
-    pub explosion_config: Option<ExplosionConfig>,
-    pub damage_config: Option<DamageConfig>,
-    pub max_hp: Option<u32>,
+    pub explosion_name: Option<String>,
+    pub max_hp: Option<f32>,
     pub ai_config: Option<String>,
 }
 
@@ -58,17 +58,13 @@ pub struct ShootConfig {
 
 #[derive(Debug, Resource, Deserialize)]
 pub struct ExplosionConfig {
+    pub damage: f32,
+    pub explode_span: f32,
     pub image: String,
     pub size: [u32; 2],
     pub frame_count: u32,
     pub frames_per_second: usize,
     pub z: f32,
-}
-
-#[derive(Debug, Resource, Deserialize)]
-pub struct DamageConfig {
-    pub damage: u32,
-    pub explode_span: f32,
 }
 
 #[derive(Debug, Resource)]
@@ -152,47 +148,63 @@ impl GameLib {
     }
 
     #[inline]
-    pub fn get_texture_atlas_layout(&self, name: &String) -> Option<Handle<TextureAtlasLayout>> {
-        match self.texture_atlas_layout_map.get(name) {
+    pub fn get_explosion_config(&self, name: &String) -> Option<&ExplosionConfig> {
+        self.config.explosion_configs.get(name)
+    }
+
+    #[inline]
+    pub fn get_texture_atlas_layout(
+        &self,
+        explosion_name: &String,
+    ) -> Option<Handle<TextureAtlasLayout>> {
+        match self.texture_atlas_layout_map.get(explosion_name) {
             Some(layout) => Some(layout.clone()),
             None => {
-                error!("Failed to find TextureAtlasLayout {}", name);
+                error!("Failed to find TextureAtlasLayout {}", explosion_name);
                 None
             }
         }
     }
 
-    fn load_images(
-        &mut self,
-        asset_server: &AssetServer,
-    ) {
+    fn load_images(&mut self, asset_server: &AssetServer) {
         for (name, file_path) in self.config.image_files.iter() {
-            self.images.insert(name.clone(), asset_server.load(file_path));
+            self.images
+                .insert(name.clone(), asset_server.load(file_path));
         }
     }
 
-    fn load_configs(
-        &mut self,
-        texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
-    ) {
+    fn load_configs(&mut self, texture_atlas_layouts: &mut Assets<TextureAtlasLayout>) {
         for i in 0..self.config.game_obj_configs.len() {
-            let obj_config = &self.config.game_obj_configs[i];
-            self.game_obj_config_map.insert(obj_config.name.clone(), i);
+            self.game_obj_config_map
+                .insert(self.get_obj_config(i).name.clone(), i);
 
-            if let Some(explosion_config) = obj_config.explosion_config.as_ref() {
-                let tile_size = UVec2 {
-                    x: explosion_config.size[0],
-                    y: explosion_config.size[1],
-                };
-                let layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
-                    tile_size,
-                    explosion_config.frame_count,
-                    1,
-                    None,
-                    None,
-                ));
-                self.texture_atlas_layout_map.insert(obj_config.name.clone(), layout);
+            if let Some(explosion_name) = self.get_obj_config(i).explosion_name.clone() {
+                self.add_texture_layout(&explosion_name, texture_atlas_layouts);
             }
         }
+    }
+
+    fn add_texture_layout(
+        &mut self,
+        explosion_name: &String,
+        texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
+    ) {
+        let Some(explosion_config) = self.get_explosion_config(explosion_name) else {
+            return;
+        };
+
+        let tile_size = UVec2 {
+            x: explosion_config.size[0],
+            y: explosion_config.size[1],
+        };
+        let layout = texture_atlas_layouts.add(TextureAtlasLayout::from_grid(
+            tile_size,
+            explosion_config.frame_count,
+            1,
+            None,
+            None,
+        ));
+        self.texture_atlas_layout_map
+            .insert(explosion_name.clone(), layout);
     }
 }
