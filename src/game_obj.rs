@@ -12,6 +12,10 @@ pub struct GameObjInfo {
     pub pos: Vec2,
     pub map_pos: MapPos,
     pub direction: Vec2,
+    pub side: GameObjSide,
+    pub obj_type: GameObjType,
+    pub collide_span: f32,
+    pub speed: f32,
     pub hp: Option<u32>,
 }
 
@@ -73,6 +77,10 @@ impl GameObjInfo {
             pos: pos.clone(),
             map_pos: map_pos.clone(),
             direction: direction.clone(),
+            side: obj_config.side,
+            obj_type: obj_config.obj_type,
+            collide_span: obj_config.collide_span,
+            speed: obj_config.speed,
             hp: obj_config.max_hp.clone(),
         };
 
@@ -117,13 +125,13 @@ impl GameObjInfo {
         }
 
         if obj_config.side == GameObjSide::AI {
-            if let Some(name) = obj_config.ai_config.as_ref() {
-                if let Some(ai_config) = game_lib.config.ai_configs.get(name) {
-                    entity.insert(AIComponent::new(ai_config));
-                } else {
-                    error!("Failed to find AIConfig {}", name);
-                }
-            }
+            // if let Some(name) = obj_config.ai_config.as_ref() {
+            //     if let Some(ai_config) = game_lib.config.ai_configs.get(name) {
+            //         entity.insert(AIComponent::new(ai_config));
+            //     } else {
+            //         error!("Failed to find AIConfig {}", name);
+            //     }
+            // }
         } else if obj_config.side == GameObjSide::Player {
             entity.insert(PlayerComponent);
         }

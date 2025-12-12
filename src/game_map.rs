@@ -173,6 +173,160 @@ impl GameMap {
             .clamp(0, (self.col_count() - 1) as i32) as usize
     }
 
+    pub fn get_tank_new_pos(
+        &self,
+        entity: &Entity,
+        obj: &GameObjInfo,
+        game_obj_lib: &GameObjInfoLib,
+        despawn_pool: &DespawnPool,
+        time: &Time,
+    ) -> (bool, Vec2) {
+        let time_delta = time.delta_secs();
+        let pos = obj.pos + obj.direction * obj.speed * time_delta;
+
+        let (collide_bounds, pos) = check_collide_bounds_nonpass(
+            &pos,
+            obj.collide_span,
+            &obj.direction,
+            self.width,
+            self.height,
+        );
+
+        let (collide_objs, pos) = self.check_tank_collide(
+            entity,
+            &pos,
+            obj,
+            game_obj_lib,
+            despawn_pool,
+        );
+
+        (collide_bounds || collide_objs, pos)
+    }
+
+    pub fn get_missile_new_pos(
+        &self,
+        entity: &Entity,
+        obj: &GameObjInfo,
+        game_obj_lib: &GameObjInfoLib,
+        despawn_pool: &DespawnPool,
+        time: &Time,
+    ) -> (bool, Vec2) {
+        let pos = obj.pos + obj.direction * obj.speed * time.delta_secs();
+
+        if check_collide_bounds_pass(&pos, obj.collide_span, self.width, self.height) {
+            return (true, pos);
+        }
+
+        let collide = self.check_missile_collide(
+            entity,
+            &pos,
+            obj,
+            game_obj_lib,
+            despawn_pool,
+        );
+
+        (collide, pos)
+    }
+
+    fn check_tank_collide(
+        &self,
+        entity: &Entity,
+        new_pos: &Vec2,
+        obj: &GameObjInfo,
+        game_obj_lib: &GameObjInfoLib,
+        despawn_pool: &DespawnPool,
+    ) -> (bool, Vec2) {
+        let mut collide = false;
+        let (start_map_pos, end_map_pos) =
+            self.get_collide_region_nonpass(&obj.pos, &new_pos, obj.collide_span);
+        let mut pos = new_pos.clone();
+
+        for row in start_map_pos.row..=end_map_pos.row {
+            for col in start_map_pos.col..=end_map_pos.col {
+                for e in self.map[row][col].iter() {
+                    if e == entity || despawn_pool.contains(e) {
+                        continue;
+                    }
+
+                    let Some(obj2) = game_obj_lib.get(e) else {
+                        warn!("Cannot find entity {e} in map");
+                        continue;
+                    };
+
+                    if (obj2.obj_type != GameObjType::Tank
+                        && obj2.obj_type != GameObjType::Tile)
+                        || obj2.collide_span == 0.0
+                    {
+                        continue;
+                    }
+
+                    let (collide_obj, corrected_pos) = check_collide_obj_nonpass(
+                        &pos,
+                        obj.collide_span,
+                        &obj.direction,
+                        &obj2.pos,
+                        obj2.collide_span,
+                    );
+
+                    if collide_obj {
+                        collide = true;
+                    }
+
+                    pos = corrected_pos;
+                }
+            }
+        }
+
+        (collide, pos)
+    }
+
+    fn check_missile_collide(
+        &self,
+        entity: &Entity,
+        new_pos: &Vec2,
+        obj: &GameObjInfo,
+        game_obj_lib: &GameObjInfoLib,
+        despawn_pool: &DespawnPool,
+    ) -> bool {
+        let (start_map_pos, end_map_pos) =
+            self.get_collide_region_pass(new_pos, obj.collide_span);
+
+        for row in start_map_pos.row..=end_map_pos.row {
+            for col in start_map_pos.col..=end_map_pos.col {
+                for e in self.map[row][col].iter() {
+                    if e == entity || despawn_pool.contains(e) {
+                        continue;
+                    }
+
+                    let Some(obj2) = game_obj_lib.get(e) else {
+                        warn!("Cannot find entity {e} in map");
+                        continue;
+                    };
+
+                    if (obj2.obj_type != GameObjType::Tank
+                        && obj2.obj_type != GameObjType::Tile)
+                        || obj2.collide_span == 0.0
+                        || obj.side == obj2.side
+                    {
+                        continue;
+                    }
+
+                    if check_collide_obj_pass(
+                        new_pos,
+                        obj.collide_span,
+                        &obj2.pos,
+                        obj2.collide_span,
+                    ) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        false
+    }
+
+
     #[inline]
     pub fn get_collide_region_nonpass(
         &self,

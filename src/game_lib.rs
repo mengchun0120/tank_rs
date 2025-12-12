@@ -106,8 +106,6 @@ impl GameLib {
         texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
     ) -> Result<Self, MyError> {
         let config: GameConfig = read_json(config_path)?;
-        let (game_obj_config_map, texture_atlas_layout_map) =
-            Self::load_configs(&config.game_obj_configs, texture_atlas_layouts);
         let origin = Vec2::new(-config.window_width() / 2.0, -config.window_height() / 2.0);
 
         let mut game_lib = Self {
@@ -119,7 +117,8 @@ impl GameLib {
             ai_config_map: HashMap::new(),
         };
 
-
+        game_lib.load_images(asset_server);
+        game_lib.load_configs(texture_atlas_layouts);
 
         info!("GameLib initialized successfully");
 
@@ -165,7 +164,6 @@ impl GameLib {
 
     fn load_images(
         &mut self,
-        image_files: &HashMap<String, String>,
         asset_server: &AssetServer,
     ) {
         for (name, file_path) in self.config.image_files.iter() {
@@ -174,20 +172,14 @@ impl GameLib {
     }
 
     fn load_configs(
-        game_obj_configs: &[GameObjConfig],
+        &mut self,
         texture_atlas_layouts: &mut Assets<TextureAtlasLayout>,
-    ) -> (
-        HashMap<String, usize>,
-        HashMap<String, Handle<TextureAtlasLayout>>,
     ) {
-        let mut game_obj_config_map: HashMap<String, usize> = HashMap::new();
-        let mut texture_atlas_layout_map: HashMap<String, Handle<TextureAtlasLayout>> =
-            HashMap::new();
+        for i in 0..self.config.game_obj_configs.len() {
+            let obj_config = &self.config.game_obj_configs[i];
+            self.game_obj_config_map.insert(obj_config.name.clone(), i);
 
-        for i in 0..game_obj_configs.len() {
-            game_obj_config_map.insert(game_obj_configs[i].name.clone(), i);
-
-            if let Some(explosion_config) = &game_obj_configs[i].explosion_config {
+            if let Some(explosion_config) = obj_config.explosion_config.as_ref() {
                 let tile_size = UVec2 {
                     x: explosion_config.size[0],
                     y: explosion_config.size[1],
@@ -199,10 +191,8 @@ impl GameLib {
                     None,
                     None,
                 ));
-                texture_atlas_layout_map.insert(game_obj_configs[i].name.clone(), layout);
+                self.texture_atlas_layout_map.insert(obj_config.name.clone(), layout);
             }
         }
-
-        (game_obj_config_map, texture_atlas_layout_map)
     }
 }

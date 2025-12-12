@@ -138,14 +138,10 @@ pub fn update_missiles(
             error!("Failed to find entity in GameObjInfoLib");
             continue;
         };
-        let obj_config = game_lib.get_obj_config(obj.config_index);
 
-        let (collide, new_pos) = get_missile_new_pos(
+        let (collide, new_pos) = map.get_missile_new_pos(
             &entity,
             &obj,
-            obj_config,
-            map.as_ref(),
-            game_lib.as_ref(),
             game_obj_lib.as_ref(),
             despawn_pool.as_ref(),
             time.as_ref(),
@@ -164,16 +160,16 @@ pub fn update_missiles(
         );
 
         if collide {
-            create_explosion(
-                &new_pos,
-                obj_config,
-                &mut dead_objs,
-                map.as_ref(),
-                game_lib.as_ref(),
-                game_obj_lib.as_mut(),
-                despawn_pool.as_ref(),
-                &mut commands,
-            );
+            // create_explosion(
+            //     &new_pos,
+            //     obj_config,
+            //     &mut dead_objs,
+            //     map.as_ref(),
+            //     game_lib.as_ref(),
+            //     game_obj_lib.as_mut(),
+            //     despawn_pool.as_ref(),
+            //     &mut commands,
+            // );
             dead_objs.insert(
                 entity.clone(),
                 DeadGameObjInfo {
@@ -231,38 +227,38 @@ pub fn update_phasing_objs(
     }
 }
 
-pub fn update_ai(
-    mut ai_tank_query: Query<(Entity, &mut AIComponent)>,
-    game_lib: Res<GameLib>,
-    mut game_obj_lib: ResMut<GameObjInfoLib>,
-    player_info: Res<PlayerInfo>,
-    time: Res<Time>,
-) {
-    let Some((player_pos, player_collide_span)) = get_player_info_for_ai(
-        player_info.as_ref(),
-        game_obj_lib.as_ref(),
-        game_lib.as_ref(),
-    ) else {
-        return;
-    };
+// pub fn update_ai(
+//     mut ai_tank_query: Query<(Entity, &mut AIComponent)>,
+//     game_lib: Res<GameLib>,
+//     mut game_obj_lib: ResMut<GameObjInfoLib>,
+//     player_info: Res<PlayerInfo>,
+//     time: Res<Time>,
+// ) {
+//     let Some((player_pos, player_collide_span)) = get_player_info_for_ai(
+//         player_info.as_ref(),
+//         game_obj_lib.as_ref(),
+//         game_lib.as_ref(),
+//     ) else {
+//         return;
+//     };
 
-    for (entity, mut ai_comp) in ai_tank_query.iter_mut() {
-        let Some((obj, ai_config)) =
-            get_obj_for_ai(&entity, game_obj_lib.as_mut(), game_lib.as_ref())
-        else {
-            continue;
-        };
+//     for (entity, mut ai_comp) in ai_tank_query.iter_mut() {
+//         let Some((obj, ai_config)) =
+//             get_obj_for_ai(&entity, game_obj_lib.as_mut(), game_lib.as_ref())
+//         else {
+//             continue;
+//         };
 
-        update_ai_for_obj(
-            obj,
-            ai_comp.as_mut(),
-            ai_config,
-            &player_pos,
-            player_collide_span,
-            time.as_ref(),
-        );
-    }
-}
+//         update_ai_for_obj(
+//             obj,
+//             ai_comp.as_mut(),
+//             ai_config,
+//             &player_pos,
+//             player_collide_span,
+//             time.as_ref(),
+//         );
+//     }
+// }
 
 pub fn cleanup(mut commands: Commands, mut despawn_pool: ResMut<DespawnPool>) {
     for e in despawn_pool.iter() {
@@ -320,12 +316,9 @@ fn steer_player(
     if new_direction != obj.direction {
         player.1.rotation = get_rotation(&new_direction);
     } else {
-        let (_, pos) = get_tank_new_pos(
+        let (_, pos) = map.get_tank_new_pos(
             &player.0,
             &obj,
-            obj_config,
-            map,
-            game_lib,
             game_obj_lib,
             despawn_pool,
             time,
@@ -773,22 +766,22 @@ fn get_player_info_for_ai(
     Some((player_pos, player_collide_span))
 }
 
-fn get_obj_for_ai<'a, 'b>(
-    entity: &Entity,
-    game_obj_lib: &'a mut GameObjInfoLib,
-    game_lib: &'b GameLib,
-) -> Option<(&'a mut GameObjInfo, &'b AIConfig)> {
-    let Some(obj) = game_obj_lib.get_mut(&entity) else {
-        error!("Failed to find tank {} in GameObjInfoLib", entity);
-        return None;
-    };
-    let Some(ai_config_name) = game_lib.get_obj_config(obj.config_index).ai_config.as_ref() else {
-        return None;
-    };
-    let Some(ai_config) = game_lib.config.ai_configs.get(ai_config_name) else {
-        error!("Failed to find AIConfig {}", ai_config_name);
-        return None;
-    };
+// fn get_obj_for_ai<'a, 'b>(
+//     entity: &Entity,
+//     game_obj_lib: &'a mut GameObjInfoLib,
+//     game_lib: &'b GameLib,
+// ) -> Option<(&'a mut GameObjInfo, &'b AIConfig)> {
+//     let Some(obj) = game_obj_lib.get_mut(&entity) else {
+//         error!("Failed to find tank {} in GameObjInfoLib", entity);
+//         return None;
+//     };
+//     let Some(ai_config_name) = game_lib.get_obj_config(obj.config_index).ai_config.as_ref() else {
+//         return None;
+//     };
+//     let Some(ai_config) = game_lib.config.ai_configs.get(ai_config_name) else {
+//         error!("Failed to find AIConfig {}", ai_config_name);
+//         return None;
+//     };
 
-    Some((obj, ai_config))
-}
+//     Some((obj, ai_config))
+// }
