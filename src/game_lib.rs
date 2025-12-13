@@ -15,6 +15,7 @@ pub struct GameConfig {
     pub game_obj_configs: Vec<GameObjConfig>,
     pub phasing_duration: f32,
     pub explosion_configs: HashMap<String, ExplosionConfig>,
+    pub shoot_configs: HashMap<String, ShootConfig>,
     pub ai_configs: Vec<AIConfig>,
 }
 
@@ -28,7 +29,7 @@ pub struct GameObjConfig {
     pub side: GameObjSide,
     pub speed: f32,
     pub collide_span: f32,
-    pub shoot_config: Option<ShootConfig>,
+    pub shoot_config: Option<String>,
     pub explosion_name: Option<String>,
     pub max_hp: Option<f32>,
     pub ai_config: Option<String>,
@@ -69,12 +70,12 @@ pub struct ExplosionConfig {
 
 #[derive(Debug, Resource)]
 pub struct GameLib {
-    pub config: GameConfig,
-    pub origin: Vec2,
-    pub images: HashMap<String, Handle<Image>>,
-    pub game_obj_config_map: HashMap<String, usize>,
-    pub texture_atlas_layout_map: HashMap<String, Handle<TextureAtlasLayout>>,
-    pub ai_config_map: HashMap<String, usize>,
+    config: GameConfig,
+    origin: Vec2,
+    images: HashMap<String, Handle<Image>>,
+    game_obj_config_map: HashMap<String, usize>,
+    texture_atlas_layout_map: HashMap<String, Handle<TextureAtlasLayout>>,
+    ai_config_map: HashMap<String, usize>,
 }
 
 impl GameConfig {
@@ -122,6 +123,11 @@ impl GameLib {
     }
 
     #[inline]
+    pub fn get_game_config(&self) -> &GameConfig {
+        &self.config
+    }
+
+    #[inline]
     pub fn get_screen_pos(&self, pos: &Vec2) -> Vec2 {
         self.origin + pos
     }
@@ -145,6 +151,11 @@ impl GameLib {
                 None
             }
         }
+    }
+
+    #[inline]
+    pub fn get_shoot_config(&self, name: &String) -> Option<&ShootConfig> {
+        self.config.shoot_configs.get(name)
     }
 
     #[inline]

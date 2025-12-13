@@ -15,7 +15,7 @@ pub fn setup_game(
     mut exit_app: MessageWriter<AppExit>,
     mut window: Single<&mut Window>,
 ) {
-    let Some(mut game_lib) = load_game_lib(
+    let Some(game_lib) = load_game_lib(
         args.config_path.as_path(),
         asset_server.as_ref(),
         texture_atlas_layouts.as_mut(),
@@ -24,7 +24,7 @@ pub fn setup_game(
         return;
     };
 
-    init_window(&game_lib.config, window.as_mut());
+    init_window(window.as_mut(), &game_lib);
     commands.spawn(Camera2d);
 
     let mut game_obj_lib = GameObjInfoLib(HashMap::new());
@@ -190,11 +190,11 @@ pub fn update_missiles(
 
     process_dead_objs(
         &dead_objs,
-        game_lib.config.phasing_duration,
         map.as_mut(),
         game_obj_lib.as_mut(),
         despawn_pool.as_mut(),
         &mut commands,
+        game_lib.as_ref(),
     );
 }
 
@@ -227,7 +227,7 @@ pub fn update_phasing_objs(
         phasing_timer.tick(time.delta());
         if !phasing_timer.is_finished() {
             let alpha =
-                (1.0 - phasing_timer.elapsed_secs() / game_lib.config.phasing_duration).max(0.0);
+                (1.0 - phasing_timer.elapsed_secs() / game_lib.get_game_config().phasing_duration).max(0.0);
             sprite.color.set_alpha(alpha);
         } else {
             despawn_pool.insert(entity);
@@ -293,10 +293,9 @@ fn load_game_lib<P: AsRef<Path>>(
     Some(game_lib)
 }
 
-fn init_window(config: &GameConfig, window: &mut Window) {
-    window
-        .resolution
-        .set(config.window_width(), config.window_height());
+fn init_window(window: &mut Window, game_lib: &GameLib) {
+    let config = game_lib.get_game_config();
+    window.resolution.set(config.window_width(), config.window_height());
 }
 
 fn steer_player(
@@ -333,11 +332,7 @@ fn steer_player(
     }
 
     update_obj_pos_direction(&player.0, &new_pos, &new_direction, game_obj_lib, map);
-
-    if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
-        let init_pos = arr_to_vec2(&shoot_config.shoot_position);
-        player.2.shoot_pos = obj.pos + new_direction.rotate(init_pos);
-    }
+    player.2.shoot_pos = obj.pos + new_direction.rotate(player.2.init_shoot_pos);
 
     capture_collide_missiles(
         &new_pos,
@@ -348,6 +343,7 @@ fn steer_player(
         despawn_pool,
         commands,
     );
+
 }
 
 fn shoot_player_missile(
@@ -420,8 +416,8 @@ fn capture_collide_missiles(
                 };
                 let obj_config2 = game_lib.get_obj_config(obj2.config_index);
 
-                if obj_config2.obj_type == GameObjType::Missile
-                    && obj_config2.side != obj_config.side
+                if obj2.obj_type == GameObjType::Missile
+                    && obj2.side != obj_config.side
                 {
                     if check_collide_obj_pass(
                         pos,
@@ -458,11 +454,11 @@ fn capture_collide_missiles(
 
     process_dead_objs(
         &dead_objs,
-        game_lib.config.phasing_duration,
         map,
         game_obj_lib,
         despawn_pool,
         commands,
+        game_lib,
     );
 }
 
@@ -491,7 +487,6 @@ fn explode(
         map,
         game_obj_lib,
         despawn_pool,
-        game_lib,
     );
 
     create_explosion(pos, explosion_name, explosion_config, game_lib, commands);
@@ -506,7 +501,6 @@ fn do_damage(
     map: &GameMap,
     game_obj_lib: &mut GameObjInfoLib,
     despawn_pool: &DespawnPool,
-    game_lib: &GameLib,
 ) {
     let (start_pos, end_pos) = map.get_collide_region_pass(pos, explode_span);
 
@@ -572,11 +566,11 @@ fn create_explosion(
 
 fn process_dead_objs(
     dead_objs: &HashMap<Entity, DeadGameObjInfo>,
-    phasing_duration: f32,
     map: &mut GameMap,
     game_obj_lib: &mut GameObjInfoLib,
     despawn_pool: &mut DespawnPool,
     commands: &mut Commands,
+    game_lib: &GameLib,
 ) {
     for (e, dead_obj) in dead_objs.iter() {
         map.remove_obj(&dead_obj.map_pos, e);
@@ -587,7 +581,7 @@ fn process_dead_objs(
             commands
                 .entity(e.clone())
                 .remove::<AIComponent>()
-                .insert(PhasingTimer::new(phasing_duration));
+                .insert(PhasingTimer::new(game_lib.get_game_config().phasing_duration));
         }
     }
 }

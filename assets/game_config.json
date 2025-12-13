@@ -20,11 +20,7 @@
             "side": "Player",
             "collide_span": 30.0,
             "speed": 100.0,
-            "shoot_config": {
-                "missile": "green_missile",
-                "shoot_duration": 0.1,
-                "shoot_position": [30.0, 0.0]
-            },
+            "shoot_config": "fast_green_missile_shooter",
             "max_hp": 100
         },
         {
@@ -46,11 +42,7 @@
             "side": "AI",
             "collide_span": 30.0,
             "speed": 80.0,
-            "shoot_config": {
-                "missile": "orange_missile",
-                "shoot_duration": 1.0,
-                "shoot_position": [30.0, 0.0]
-            },
+            "shoot_config": "slow_orange_missile_shooter",
             "max_hp": 20,
             "ai_config": "chase_and_shoot"
         },
@@ -76,6 +68,18 @@
             "speed": 80.0
         }
     ],
+    "shoot_configs": {
+        "fast_green_missile_shooter": {
+            "missile": "green_missile",
+            "shoot_duration": 0.1,
+            "shoot_position": [30.0, 0.0]
+        },
+        "slow_orange_missile_shooter": {
+            "missile": "orange_missile",
+            "shoot_duration": 1.0,
+            "shoot_position": [30.0, 0.0]
+        }
+    },
     "explosion_configs": {
         "green_explosion": {
             "damage": 20.0,

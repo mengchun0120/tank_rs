@@ -60,7 +60,7 @@ impl GameMap {
         commands: &mut Commands,
     ) -> Result<GameMap, MyError> {
         let map_config: GameMapConfig = read_json(map_path.as_ref())?;
-        let game_config = &game_lib.config;
+        let game_config = &game_lib.get_game_config();
         let mut map = GameMap::new(
             game_config.map_cell_size,
             game_config.map_row_count(),

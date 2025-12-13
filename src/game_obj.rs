@@ -33,6 +33,7 @@ pub struct ShootComponent {
     pub timer: Timer,
     pub shoot_pos: Vec2,
     pub missile_config_index: usize,
+    pub init_shoot_pos: Vec2,
 }
 
 #[derive(Component)]
@@ -67,7 +68,7 @@ impl GameObjInfo {
         game_lib: &GameLib,
         commands: &mut Commands,
     ) -> Option<(Self, Entity)> {
-        let obj_config = &game_lib.config.game_obj_configs[config_index];
+        let obj_config = &game_lib.get_obj_config(config_index);
         let Some(entity) = Self::create_entity(pos, direction, obj_config, game_lib, commands)
         else {
             return None;
@@ -136,20 +137,43 @@ impl GameObjInfo {
             entity.insert(PlayerComponent);
         }
 
-        if let Some(shoot_config) = obj_config.shoot_config.as_ref() {
-            let missile_config_index = game_lib
-                .get_obj_config_index(&shoot_config.missile)
-                .expect(&format!("Cannot find missile {}", shoot_config.missile));
-
-            let shoot_pos = pos + direction.rotate(arr_to_vec2(&shoot_config.shoot_position));
-            entity.insert(ShootComponent {
-                timer: Timer::from_seconds(shoot_config.shoot_duration, TimerMode::Repeating),
-                shoot_pos,
-                missile_config_index,
-            });
+        if let Some(shoot_config_name) = obj_config.shoot_config.as_ref() {
+            if let Some(shoot_comp) =
+                Self::get_shoot_component(pos, direction, shoot_config_name, game_lib)
+            {
+                entity.insert(shoot_comp);
+            }
         }
 
         Some(entity.id())
+    }
+
+    fn get_shoot_component(
+        pos: &Vec2,
+        direction: &Vec2,
+        shoot_config_name: &String,
+        game_lib: &GameLib,
+    ) -> Option<ShootComponent> {
+        let Some(shoot_config) = game_lib.get_shoot_config(shoot_config_name) else {
+            error!("Failed to find ShootConfig {}", shoot_config_name);
+            return None;
+        };
+
+        let Some(missile_config_index) = game_lib.get_obj_config_index(&shoot_config.missile)
+        else {
+            error!("Failed to find missile {}", shoot_config.missile);
+            return None;
+        };
+
+        let init_shoot_pos = arr_to_vec2(&shoot_config.shoot_position);
+        let shoot_pos = pos + direction.rotate(init_shoot_pos);
+
+        Some(ShootComponent {
+            missile_config_index,
+            timer: Timer::from_seconds(shoot_config.shoot_duration, TimerMode::Repeating),
+            shoot_pos,
+            init_shoot_pos,
+        })
     }
 }
 
